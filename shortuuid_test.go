@@ -213,22 +213,23 @@ func TestDecoding(t *testing.T) {
 	}
 }
 
-func compare(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func TestNewWithAlphabet(t *testing.T) {
 	su, _ := NewWithAlphabet("123456abcdef")
 	expect := strings.Split("123456abcdef", "")
-	if !compare(su.alphabet.chars, expect) {
+
+	match := func(a, b []string) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i := 0; i < len(a); i++ {
+			if a[i] != b[i] {
+				return false
+			}
+		}
+		return true
+	}(su.alphabet.chars, expect)
+
+	if !match {
 		t.Errorf("expected alphabet %s, got %s", expect, su.alphabet.chars)
 	}
 
