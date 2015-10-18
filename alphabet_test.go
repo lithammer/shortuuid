@@ -21,6 +21,13 @@ func TestDedupe(t *testing.T) {
 	}
 }
 
+func TestAlphabetIndex(t *testing.T) {
+	abc := newAlphabet("abcdefghijklmnopqrstuvwxyz")
+	if abc.Index("z") != 25 {
+		t.Errorf("expected index 25, got %d", abc.Index("z"))
+	}
+}
+
 func TestAlphabetIndexZero(t *testing.T) {
 	abc := newAlphabet("abc")
 	if abc.Index("z") != 0 {
