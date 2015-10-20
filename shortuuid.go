@@ -58,7 +58,12 @@ func (su *ShortUUID) UUID(name string) string {
 func (su *ShortUUID) Encode(u uuid.UUID) string {
 	var num big.Int
 	num.SetString(strings.Replace(u.String(), "-", "", 4), 16)
-	return su.numToString(&num, su.encodedLength(len(u.Bytes())))
+
+	// Calculate encoded length.
+	factor := math.Log(float64(25)) / math.Log(float64(su.alphabet.Length()))
+	length := math.Ceil(factor * float64(len(u.Bytes())))
+
+	return su.numToString(&num, int(length))
 }
 
 // Decode decodes a string according to the alphabet into a uuid.UUID. If s is
@@ -110,10 +115,4 @@ func (su *ShortUUID) stringToNum(s string) string {
 	}
 
 	return fmt.Sprintf("%s-%s-%s-%s-%s", x[0:8], x[8:12], x[12:16], x[16:20], x[20:32])
-}
-
-func (su *ShortUUID) encodedLength(numBytes int) int {
-	factor := math.Log(float64(25)) / math.Log(float64(su.alphabet.Length()))
-	length := math.Ceil(factor * float64(numBytes))
-	return int(length)
 }
