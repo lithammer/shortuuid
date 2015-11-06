@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The default alphabet used.
+// DefaultAlphabet is the default alphabet used.
 const DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 type alphabet struct {

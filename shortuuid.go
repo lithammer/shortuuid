@@ -14,6 +14,7 @@ func UUID() string {
 	return New().UUID("")
 }
 
+// ShortUUID represents a short UUID encoder.
 type ShortUUID struct {
 	// alphabet is the character set to construct the UUID from.
 	alphabet alphabet
@@ -24,7 +25,7 @@ func New() *ShortUUID {
 	return &ShortUUID{newAlphabet(DefaultAlphabet)}
 }
 
-// New returns a new (short) UUID using alphabet.
+// NewWithAlphabet returns a new (short) UUID using alphabet.
 // The alphabet will be sorted and if it contains duplicate characters, they
 // will be removed.
 func NewWithAlphabet(alphabet string) (*ShortUUID, error) {
