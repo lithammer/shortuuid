@@ -73,7 +73,11 @@ func (su *ShortUUID) Encode(u uuid.UUID) string {
 // Decode decodes a string according to the alphabet into a uuid.UUID. If s is
 // too short, its most significant bits (MSB) will be padded with 0 (zero).
 func (su *ShortUUID) Decode(u string) (uuid.UUID, error) {
-	return uuid.FromString(su.stringToNum(u))
+	str, err := su.stringToNum(u)
+	if err != nil {
+		return uuid.Nil, err //TODO: the first return is questionable
+	}
+	return uuid.FromString(str)
 }
 
 // String returns a (short) UUID v4, and will generate one if necessary. To
@@ -107,12 +111,18 @@ func (su *ShortUUID) numToString(number *big.Int, padToLen int) string {
 }
 
 // stringToNum converts a string a number using the given alpabet.
-func (su *ShortUUID) stringToNum(s string) string {
+func (su *ShortUUID) stringToNum(s string) (string, error) {
 	n := big.NewInt(0)
 
 	for i := len(s) - 1; i >= 0; i-- {
 		n.Mul(n, big.NewInt(su.alphabet.Length()))
-		n.Add(n, big.NewInt(su.alphabet.Index(string(s[i]))))
+
+		index, err := su.alphabet.Index(string(s[i]))
+		if err != nil {
+			return "", err
+		}
+
+		n.Add(n, big.NewInt(index))
 	}
 
 	x := fmt.Sprintf("%x", n)
@@ -122,5 +132,5 @@ func (su *ShortUUID) stringToNum(s string) string {
 		x = strings.Repeat("0", 32-len(x)) + x
 	}
 
-	return fmt.Sprintf("%s-%s-%s-%s-%s", x[0:8], x[8:12], x[12:16], x[16:20], x[20:32])
+	return fmt.Sprintf("%s-%s-%s-%s-%s", x[0:8], x[8:12], x[12:16], x[16:20], x[20:32]), nil
 }
