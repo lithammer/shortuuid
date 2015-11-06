@@ -45,9 +45,9 @@ func (su *ShortUUID) UUID(name string) string {
 	case name == "":
 		u = uuid.NewV4()
 	case strings.HasPrefix(name, "http"):
-		u = uuid.NewV5(uuid.NamespaceDNS, name)
-	default:
 		u = uuid.NewV5(uuid.NamespaceURL, name)
+	default:
+		u = uuid.NewV5(uuid.NamespaceDNS, name)
 	}
 
 	return su.Encode(u)
