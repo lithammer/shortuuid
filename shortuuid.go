@@ -18,11 +18,13 @@ func UUID() string {
 type ShortUUID struct {
 	// alphabet is the character set to construct the UUID from.
 	alphabet alphabet
+
+	uuid string
 }
 
 // New returns a new (short) UUID with the default alphabet.
 func New() *ShortUUID {
-	return &ShortUUID{newAlphabet(DefaultAlphabet)}
+	return &ShortUUID{alphabet: newAlphabet(DefaultAlphabet)}
 }
 
 // NewWithAlphabet returns a new (short) UUID using alphabet.
@@ -33,7 +35,7 @@ func NewWithAlphabet(alphabet string) (*ShortUUID, error) {
 		return nil, fmt.Errorf("alphabet must not be empty")
 	}
 
-	return &ShortUUID{newAlphabet(alphabet)}, nil
+	return &ShortUUID{alphabet: newAlphabet(alphabet)}, nil
 }
 
 // UUID returns a new (short) UUID. If name is non-empty, the namespace
@@ -50,7 +52,8 @@ func (su *ShortUUID) UUID(name string) string {
 		u = uuid.NewV5(uuid.NamespaceDNS, name)
 	}
 
-	return su.Encode(u)
+	su.uuid = su.Encode(u)
+	return su.uuid
 }
 
 // Encode encodes uuid.UUID into a string using the least significant bits
@@ -73,10 +76,14 @@ func (su *ShortUUID) Decode(u string) (uuid.UUID, error) {
 	return uuid.FromString(su.stringToNum(u))
 }
 
-// String genreates a new (short) UUID v4. This is not deterministic, and will
-// return a new value each time it's called.
+// String returns a (short) UUID v4, and will generate one if necessary. To
+// generate a new string, use UUID().
 // Implements the fmt.Stringer interface.
 func (su *ShortUUID) String() string {
+	if su.uuid != "" {
+		return su.uuid
+	}
+
 	return su.UUID("")
 }
 

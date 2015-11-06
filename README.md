@@ -22,10 +22,9 @@ func main() {
     id := shortuuid.UUID()  // "ajLWxEodc6CmQLHADuKVwD"
 
     u := shortuuid.New()
-    // Note that this will create a new UUID each time its .String() method
-    // is invoked.
-    fmt.Printf("%s", u)  // Cekw67uyMpBGZLRP2HFVbe
-    fmt.Printf("%s", u)  // 4pUYNRFHTG3YVgThPZvCgC
+    fmt.Printf("%s", u)     // Cekw67uyMpBGZLRP2HFVbe
+    u.UUID("")              // Generate a new UUID
+    fmt.Printf("%s", u)     // 4pUYNRFHTG3YVgThPZvCgC
 }
 ```
 

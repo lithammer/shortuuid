@@ -241,8 +241,8 @@ func TestNewWithAlphabet(t *testing.T) {
 
 func TestString(t *testing.T) {
 	u := New()
-	if u.String() == u.String() {
-		t.Error("expected successive calls to .String() to be different")
+	if u.String() != u.String() {
+		t.Error("expected successive calls to .String() to be equal")
 	}
 }
 
