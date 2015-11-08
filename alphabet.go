@@ -1,7 +1,7 @@
 package shortuuid
 
 import (
-	"errors"
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -35,7 +35,7 @@ func (a *alphabet) Index(t string) (int64, error) {
 			return int64(i), nil
 		}
 	}
-	return 0, errors.New("Not contained in alphabet")
+    return 0, fmt.Errorf("Element '%v' is not part of the alphabet", t)
 }
 
 // dudupe removes duplicate characters from s.
