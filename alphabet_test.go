@@ -22,20 +22,20 @@ func TestDedupe(t *testing.T) {
 }
 
 func TestAlphabetIndex(t *testing.T) {
-	abc := newAlphabet("abcdefghijklmnopqrstuvwxyz")
+	abc := newAlphabet(DefaultAlphabet)
 	idx, err := abc.Index("z")
 
 	if err != nil {
-		t.Errorf("expected index 25, got an error trying to get it %v", err)
+		t.Errorf("expected index 56, got an error trying to get it %v", err)
 	}
-	if idx != 25 {
-		t.Errorf("expected index 25, got %d", idx)
+	if idx != 56 {
+		t.Errorf("expected index 56, got %d", idx)
 	}
 }
 
 func TestAlphabetIndexZero(t *testing.T) {
-	abc := newAlphabet("abc")
-	idx, err := abc.Index("a")
+	abc := newAlphabet(DefaultAlphabet)
+	idx, err := abc.Index("2")
 
 	if err != nil {
 		t.Errorf("expected index 0, got an error trying to get it %v", err)
@@ -46,8 +46,8 @@ func TestAlphabetIndexZero(t *testing.T) {
 }
 
 func TestAlphabetIndexError(t *testing.T) {
-	abc := newAlphabet("abc")
-	idx, err := abc.Index("z")
+	abc := newAlphabet(DefaultAlphabet)
+	idx, err := abc.Index("l")
 	if err == nil {
 		t.Errorf("expected an error, got a valid index %d", idx)
 	}

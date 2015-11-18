@@ -19,19 +19,48 @@ import (
 )
 
 func main() {
-    id := shortuuid.UUID()  // "ajLWxEodc6CmQLHADuKVwD"
-
-    u := shortuuid.New()
-    fmt.Printf("%s", u)     // Cekw67uyMpBGZLRP2HFVbe
-    u.UUID("")              // Generate a new UUID
-    fmt.Printf("%s", u)     // 4pUYNRFHTG3YVgThPZvCgC
+    u := shortuuid.New() // Cekw67uyMpBGZLRP2HFVbe
 }
 ```
 
-To use UUID v5 (instead of the default v4), pass a namespace (DNS or URL) to the `.UUID(name string)` call:
+To use UUID v5 (instead of the default v4), use `NewWithNamespace(name string)` instead of `New()`.
 
 ```go
-shortuuid.New().UUID("http://example.com")
+shortuuid.NewWithNamespace("http://example.com")
+```
+
+It's possible to use a custom alphabet as well, though it has to be 57 characters long.
+
+```go
+alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
+shortuuid.NewWithAlphabet(alphabet) // u=BFWRLr5dXbeWf==iasZi
+```
+
+Bring your own encoder! For example, base58 is popular among bitcoin.
+
+```go
+package main
+
+import (
+    "github.com/btcsuite/btcutil/base58"
+    "github.com/renstrom/shortuuid"
+    "github.com/satori/go.uuid"
+)
+
+type base58Encoder struct {}
+
+func (enc base58Encoder) Encode(u uuid.UUID) string {
+    return base58.Encode(u.Bytes())
+}
+
+func (enc base58Encoder) Decode(s string) (uuid.UUID, error) {
+    return uuid.FromBytes(base58.Decode(s))
+}
+
+func main() {
+    enc := base58Encoder{}
+    fmt.Println(shortuuid.NewWithEncoder(enc)) // 6R7VqaQHbzC1xwA5UueGe6
+}
 ```
 
 ## License

@@ -1,7 +1,6 @@
 package shortuuid
 
 import (
-	"strings"
 	"testing"
 
 	uuid "github.com/satori/go.uuid"
@@ -173,7 +172,7 @@ func TestGeneration(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		u := New().UUID(test)
+		u := NewWithNamespace(test)
 		if len(u) < 20 || len(u) > 24 {
 			t.Errorf("expected %q to be in range [20, 24], got %d", u, len(u))
 		}
@@ -187,7 +186,7 @@ func TestEncoding(t *testing.T) {
 			t.Error(err)
 		}
 
-		suuid := New().Encode(u)
+		suuid := base57Encoder.Encode(u)
 
 		if suuid != test.shortuuid {
 			t.Errorf("expected %q, got %q", test.shortuuid, suuid)
@@ -202,7 +201,7 @@ func TestDecoding(t *testing.T) {
 			t.Error(err)
 		}
 
-		u2, err := New().Decode(test.shortuuid)
+		u2, err := base57Encoder.Decode(test.shortuuid)
 		if err != nil {
 			t.Error(err)
 		}
@@ -214,55 +213,30 @@ func TestDecoding(t *testing.T) {
 }
 
 func TestNewWithAlphabet(t *testing.T) {
-	su, _ := NewWithAlphabet("123456abcdef")
-	expect := strings.Split("123456abcdef", "")
-
-	match := func(a, b []string) bool {
-		if len(a) != len(b) {
-			return false
-		}
-		for i := 0; i < len(a); i++ {
-			if a[i] != b[i] {
-				return false
-			}
-		}
-		return true
-	}(su.alphabet.chars, expect)
-
-	if !match {
-		t.Errorf("expected alphabet %s, got %s", expect, su.alphabet.chars)
-	}
-
-	_, err := NewWithAlphabet("")
-	if err == nil {
-		t.Errorf("an empty alphabet should cause an error")
-	}
-}
-
-func TestString(t *testing.T) {
-	u := New()
-	if u.String() != u.String() {
-		t.Error("expected successive calls to .String() to be equal")
+	abc := DefaultAlphabet[:len(DefaultAlphabet)-1] + "="
+	enc := base57{newAlphabet(abc)}
+	u1, _ := uuid.FromString("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
+	u2 := enc.Encode(u1)
+	if u2 != "u=BFWRLr5dXbeWf==iasZi" {
+		t.Errorf("expected uuid to be %q, got %q", "u=BFWRLr5dXbeWf==iasZi", u2)
 	}
 }
 
 func BenchmarkUUID(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		UUID()
+		New()
 	}
 }
 
 func BenchmarkEncoding(b *testing.B) {
 	u := uuid.NewV4()
-	su := New()
 	for i := 0; i < b.N; i++ {
-		su.Encode(u)
+		base57Encoder.Encode(u)
 	}
 }
 
 func BenchmarkDecoding(b *testing.B) {
-	su := New()
 	for i := 0; i < b.N; i++ {
-		su.Decode("c3eeb3e6-e577-4de2-b5bb-08371196b453")
+		_, _ = base57Encoder.Decode("c3eeb3e6-e577-4de2-b5bb-08371196b453")
 	}
 }
