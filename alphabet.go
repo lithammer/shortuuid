@@ -10,18 +10,24 @@ import (
 const DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 type alphabet struct {
-	chars []string
+	chars [57]string
 	len   int64
 }
 
+// Remove duplicates and sort it to ensure reproducability.
 func newAlphabet(s string) alphabet {
-	// Remove duplicates and sort it to ensure reproducability.
 	abc := dedupe(strings.Split(s, ""))
-	sort.Strings(abc)
-	return alphabet{
-		chars: abc,
-		len:   int64(len(abc)),
+
+	if len(abc) != 57 {
+		panic("encoding alphabet is not 57-bytes long")
 	}
+
+	sort.Strings(abc)
+	a := alphabet{
+		len: int64(len(abc)),
+	}
+	copy(a.chars[:], abc)
+	return a
 }
 
 func (a *alphabet) Length() int64 {
