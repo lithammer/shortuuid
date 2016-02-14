@@ -42,6 +42,7 @@ Bring your own encoder! For example, base58 is popular among bitcoin.
 package main
 
 import (
+    "fmt"
     "github.com/btcsuite/btcutil/base58"
     "github.com/renstrom/shortuuid"
     "github.com/satori/go.uuid"
