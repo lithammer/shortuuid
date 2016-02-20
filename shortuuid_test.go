@@ -186,7 +186,7 @@ func TestEncoding(t *testing.T) {
 			t.Error(err)
 		}
 
-		suuid := base57Encoder.Encode(u)
+		suuid := DefaultEncoder.Encode(u)
 
 		if suuid != test.shortuuid {
 			t.Errorf("expected %q, got %q", test.shortuuid, suuid)
@@ -201,7 +201,7 @@ func TestDecoding(t *testing.T) {
 			t.Error(err)
 		}
 
-		u2, err := base57Encoder.Decode(test.shortuuid)
+		u2, err := DefaultEncoder.Decode(test.shortuuid)
 		if err != nil {
 			t.Error(err)
 		}
@@ -231,12 +231,12 @@ func BenchmarkUUID(b *testing.B) {
 func BenchmarkEncoding(b *testing.B) {
 	u := uuid.NewV4()
 	for i := 0; i < b.N; i++ {
-		base57Encoder.Encode(u)
+		DefaultEncoder.Encode(u)
 	}
 }
 
 func BenchmarkDecoding(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = base57Encoder.Decode("c3eeb3e6-e577-4de2-b5bb-08371196b453")
+		_, _ = DefaultEncoder.Decode("c3eeb3e6-e577-4de2-b5bb-08371196b453")
 	}
 }
