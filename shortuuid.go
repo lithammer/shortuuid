@@ -1,10 +1,10 @@
 package shortuuid
 
 import (
+	"fmt"
 	"strings"
 
 	uuid "github.com/satori/go.uuid"
-	"fmt"
 )
 
 // DefaultEncoder is the default encoder uses when generating new UUIDs, and is
