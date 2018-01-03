@@ -19,33 +19,21 @@ type Encoder interface {
 
 // New returns a new UUIDv4, encoded with base57.
 func New() string {
-	str, err := uuid.NewV4()
-	if err != nil {
-		panic(fmt.Sprintf("Unable to create UUIDv4: %s", err))
-	}
-	return DefaultEncoder.Encode(str)
+	return DefaultEncoder.Encode(uuid.Must(uuid.NewV4()))
 }
 
 // NewWithEncoder returns a new UUIDv4, encoded with enc.
 func NewWithEncoder(enc Encoder) string {
-	str, err := uuid.NewV4()
-	if err != nil {
-		panic(fmt.Sprintf("Unable to create UUIDv4: %s", err))
-	}
-	return enc.Encode(str)
+	return enc.Encode(uuid.Must(uuid.NewV4()))
 }
 
 // NewWithNamespace returns a new UUIDv5 (or v4 if name is empty), encoded with base57.
 func NewWithNamespace(name string) string {
 	var u uuid.UUID
-	var err error
 
 	switch {
 	case name == "":
-		u, err = uuid.NewV4()
-		if err != nil {
-			panic(fmt.Sprintf("Unable to create UUIDv4: %s", err))
-		}
+		u = uuid.Must(uuid.NewV4())
 	case strings.HasPrefix(name, "http"):
 		u = uuid.NewV5(uuid.NamespaceURL, name)
 	default:
