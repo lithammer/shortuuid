@@ -1,6 +1,7 @@
 package shortuuid
 
 import (
+	"fmt"
 	"strings"
 
 	uuid "github.com/satori/go.uuid"
@@ -18,21 +19,33 @@ type Encoder interface {
 
 // New returns a new UUIDv4, encoded with base57.
 func New() string {
-	return DefaultEncoder.Encode(uuid.NewV4())
+	str, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Sprintf("Unable to create UUIDv4: %s", err))
+	}
+	return DefaultEncoder.Encode(str)
 }
 
 // NewWithEncoder returns a new UUIDv4, encoded with enc.
 func NewWithEncoder(enc Encoder) string {
-	return enc.Encode(uuid.NewV4())
+	str, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Sprintf("Unable to create UUIDv4: %s", err))
+	}
+	return enc.Encode(str)
 }
 
 // NewWithNamespace returns a new UUIDv5 (or v4 if name is empty), encoded with base57.
 func NewWithNamespace(name string) string {
 	var u uuid.UUID
+	var err error
 
 	switch {
 	case name == "":
-		u = uuid.NewV4()
+		u, err = uuid.NewV4()
+		if err != nil {
+			panic(fmt.Sprintf("Unable to create UUIDv4: %s", err))
+		}
 	case strings.HasPrefix(name, "http"):
 		u = uuid.NewV5(uuid.NamespaceURL, name)
 	default:
@@ -46,5 +59,9 @@ func NewWithNamespace(name string) string {
 // alternative alphabet abc.
 func NewWithAlphabet(abc string) string {
 	enc := base57{newAlphabet(abc)}
-	return enc.Encode(uuid.NewV4())
+	str, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Sprintf("Unable to create UUIDv4: %s", err))
+	}
+	return enc.Encode(str)
 }

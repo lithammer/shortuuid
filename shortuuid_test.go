@@ -229,7 +229,11 @@ func BenchmarkUUID(b *testing.B) {
 }
 
 func BenchmarkEncoding(b *testing.B) {
-	u := uuid.NewV4()
+	u, err := uuid.NewV4()
+	if err != nil {
+		b.Logf("Unable to create UUIDv4: %s", err)
+		b.FailNow()
+	}
 	for i := 0; i < b.N; i++ {
 		DefaultEncoder.Encode(u)
 	}
