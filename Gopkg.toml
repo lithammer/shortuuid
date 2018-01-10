@@ -1,0 +1,3 @@
+[[constraint]]
+  name = "github.com/satori/go.uuid"
+  version = "v1.2"
