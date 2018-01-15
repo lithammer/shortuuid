@@ -18,12 +18,12 @@ type Encoder interface {
 
 // New returns a new UUIDv4, encoded with base57.
 func New() string {
-	return DefaultEncoder.Encode(uuid.Must(uuid.NewV4()))
+	return DefaultEncoder.Encode(uuid.NewV4())
 }
 
 // NewWithEncoder returns a new UUIDv4, encoded with enc.
 func NewWithEncoder(enc Encoder) string {
-	return enc.Encode(uuid.Must(uuid.NewV4()))
+	return enc.Encode(uuid.NewV4())
 }
 
 // NewWithNamespace returns a new UUIDv5 (or v4 if name is empty), encoded with base57.
@@ -32,7 +32,7 @@ func NewWithNamespace(name string) string {
 
 	switch {
 	case name == "":
-		u = uuid.Must(uuid.NewV4())
+		u = uuid.NewV4()
 	case strings.HasPrefix(name, "http"):
 		u = uuid.NewV5(uuid.NamespaceURL, name)
 	default:
@@ -46,5 +46,5 @@ func NewWithNamespace(name string) string {
 // alternative alphabet abc.
 func NewWithAlphabet(abc string) string {
 	enc := base57{newAlphabet(abc)}
-	return enc.Encode(uuid.Must(uuid.NewV4()))
+	return enc.Encode(uuid.NewV4())
 }
