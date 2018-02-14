@@ -3,7 +3,7 @@ package shortuuid
 import (
 	"testing"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 var testVector = []struct {
@@ -181,7 +181,7 @@ func TestGeneration(t *testing.T) {
 
 func TestEncoding(t *testing.T) {
 	for _, test := range testVector {
-		u, err := uuid.FromString(test.uuid)
+		u, err := uuid.Parse(test.uuid)
 		if err != nil {
 			t.Error(err)
 		}
@@ -196,7 +196,7 @@ func TestEncoding(t *testing.T) {
 
 func TestDecoding(t *testing.T) {
 	for _, test := range testVector {
-		u1, err := uuid.FromString(test.uuid)
+		u1, err := uuid.Parse(test.uuid)
 		if err != nil {
 			t.Error(err)
 		}
@@ -215,7 +215,7 @@ func TestDecoding(t *testing.T) {
 func TestNewWithAlphabet(t *testing.T) {
 	abc := DefaultAlphabet[:len(DefaultAlphabet)-1] + "="
 	enc := base57{newAlphabet(abc)}
-	u1, _ := uuid.FromString("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
+	u1, _ := uuid.Parse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
 	u2 := enc.Encode(u1)
 	if u2 != "u=BFWRLr5dXbeWf==iasZi" {
 		t.Errorf("expected uuid to be %q, got %q", "u=BFWRLr5dXbeWf==iasZi", u2)
@@ -229,7 +229,7 @@ func BenchmarkUUID(b *testing.B) {
 }
 
 func BenchmarkEncoding(b *testing.B) {
-	u := uuid.NewV4()
+	u := uuid.New()
 	for i := 0; i < b.N; i++ {
 		DefaultEncoder.Encode(u)
 	}
