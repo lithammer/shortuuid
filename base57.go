@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type base57 struct {
@@ -23,7 +23,7 @@ func (b base57) Encode(u uuid.UUID) string {
 
 	// Calculate encoded length.
 	factor := math.Log(float64(25)) / math.Log(float64(b.alphabet.Length()))
-	length := math.Ceil(factor * float64(len(u.Bytes())))
+	length := math.Ceil(factor * float64(len(u)))
 
 	return b.numToString(&num, int(length))
 }
@@ -35,7 +35,7 @@ func (b base57) Decode(u string) (uuid.UUID, error) {
 	if err != nil {
 		return uuid.Nil, err
 	}
-	return uuid.FromString(str)
+	return uuid.Parse(str)
 }
 
 // numToString converts a number a string using the given alpabet.
