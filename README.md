@@ -1,7 +1,7 @@
 # shortuuid
 
-[![Build Status](https://img.shields.io/travis/renstrom/shortuuid.svg?style=flat-square)](https://travis-ci.org/renstrom/shortuuid)
-[![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/renstrom/shortuuid)
+[![Build Status](https://img.shields.io/travis/lithammer/shortuuid.svg?style=flat-square)](https://travis-ci.org/lithammer/shortuuid)
+[![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/lithammer/shortuuid)
 
 A Go library that generates concise, unambiguous, URL-safe UUIDs. Based on and
 compatible with the Python library
@@ -22,7 +22,7 @@ package main
 import (
     "fmt"
 
-    "github.com/renstrom/shortuuid"
+    "github.com/lithammer/shortuuid"
 )
 
 func main() {
@@ -53,7 +53,7 @@ package main
 import (
     "fmt"
     "github.com/btcsuite/btcutil/base58"
-    "github.com/renstrom/shortuuid"
+    "github.com/lithammer/shortuuid"
     "github.com/satori/go.uuid"
 )
 
