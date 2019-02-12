@@ -213,7 +213,7 @@ func TestDecoding(t *testing.T) {
 }
 
 func TestDecodingErrors(t *testing.T) {
-	const (
+	var (
 		NotPartOfAlphabetError  = "not part of alphabet"
 		UUIDLengthOverflowError = "UUID length overflow"
 	)
@@ -223,7 +223,7 @@ func TestDecodingErrors(t *testing.T) {
 	}{
 		{"6B8cwPMGnU6qLbRvo7qEZo", UUIDLengthOverflowError},
 		{"SiKyfue4VDTKnynXckqVNt", UUIDLengthOverflowError},
-		{"122222222222222222222", NotPartOfAlphabetError},
+		{"1lIO022222222222222222", NotPartOfAlphabetError},
 		{"0a6hrgRGNfQ57QMHZdNYAg", NotPartOfAlphabetError},
 	}
 	for _, test := range tests {
