@@ -212,6 +212,28 @@ func TestDecoding(t *testing.T) {
 	}
 }
 
+func TestDecodingErrors(t *testing.T) {
+	var (
+		NotPartOfAlphabetError  = "not part of alphabet"
+		UUIDLengthOverflowError = "UUID length overflow"
+	)
+	var tests = []struct {
+		shortuuid string
+		error     string
+	}{
+		{"6B8cwPMGnU6qLbRvo7qEZo", UUIDLengthOverflowError},
+		{"SiKyfue4VDTKnynXckqVNt", UUIDLengthOverflowError},
+		{"1lIO022222222222222222", NotPartOfAlphabetError},
+		{"0a6hrgRGNfQ57QMHZdNYAg", NotPartOfAlphabetError},
+	}
+	for _, test := range tests {
+		_, err := DefaultEncoder.Decode(test.shortuuid)
+		if err == nil {
+			t.Errorf("expected %q error for %q", test.error, test.shortuuid)
+		}
+	}
+}
+
 func TestNewWithAlphabet(t *testing.T) {
 	abc := DefaultAlphabet[:len(DefaultAlphabet)-1] + "="
 	enc := base57{newAlphabet(abc)}
