@@ -75,9 +75,11 @@ func (b *base57) stringToNum(s string) (string, error) {
 
 	x := fmt.Sprintf("%x", n)
 
-	// Pad the most significant bit (MSG) with 0 (zero) if the string is too short.
 	if len(x) < 32 {
+		// Pad the most significant bit (MSG) with 0 (zero) if the string is too short.
 		x = strings.Repeat("0", 32-len(x)) + x
+	} else if len(x) > 32 {
+		return "", fmt.Errorf("UUID length overflow for %q", s)
 	}
 
 	return fmt.Sprintf("%s-%s-%s-%s-%s", x[0:8], x[8:12], x[12:16], x[16:20], x[20:32]), nil
