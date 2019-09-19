@@ -22,7 +22,7 @@ jobs:
           GOPROXY: "https://proxy.golang.org"
 
       - name: Build
-        run: go build
+        run: go build -v .
 
       - name: Test
         run: go test -v ./...
