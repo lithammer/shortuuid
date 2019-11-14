@@ -22,7 +22,7 @@ package main
 import (
     "fmt"
 
-    "github.com/lithammer/shortuuid"
+    "github.com/lithammer/shortuuid/v3"
 )
 
 func main() {
@@ -53,7 +53,7 @@ package main
 import (
     "fmt"
     "github.com/btcsuite/btcutil/base58"
-    "github.com/lithammer/shortuuid"
+    "github.com/lithammer/shortuuid/v3"
     "github.com/satori/go.uuid"
 )
 
