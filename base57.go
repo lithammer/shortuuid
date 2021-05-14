@@ -45,7 +45,8 @@ func (b *base57) numToString(number *big.Int, padToLen int) string {
 		digit *big.Int
 	)
 
-	for number.Uint64() > 0 {
+	zero := new(big.Int)
+	for number.Cmp(zero) > 0 {
 		number, digit = new(big.Int).DivMod(number, big.NewInt(b.alphabet.Length()), new(big.Int))
 		out += b.alphabet.chars[digit.Int64()]
 	}
