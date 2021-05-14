@@ -161,6 +161,8 @@ var testVector = []struct {
 	{"ca887b94-e90a-4143-b498-b0f517677e5a", "bLBXoAmYhoJvTHv2FVUz3e"},
 	{"eb9ccaea-9569-4688-a40a-96fe3dd3d6eb", "89hHCpRTfBuhi7hxJDWUvj"},
 	{"00000000-0000-0000-0000-000000000000", "2222222222222"},
+	{"00000000-0000-0000-8000-000000000000", "z7C8BNkRBVT22"},
+	{"00000000-0000-0001-0000-000000000000", "yDNELiVqLxt22"},
 }
 
 func TestGeneration(t *testing.T) {
