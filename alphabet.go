@@ -34,7 +34,8 @@ func (a *alphabet) Length() int64 {
 	return a.len
 }
 
-// Index returns the index of the first instance of t in the alphabet, or an error if t is not present.
+// Index returns the index of the first instance of t in the alphabet, or an
+// error if t is not present.
 func (a *alphabet) Index(t string) (int64, error) {
 	for i, char := range a.chars {
 		if char == t {
