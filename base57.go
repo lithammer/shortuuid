@@ -22,7 +22,7 @@ func (b base57) Encode(u uuid.UUID) string {
 	num.SetString(strings.Replace(u.String(), "-", "", 4), 16)
 
 	// Calculate encoded length.
-	factor := math.Log(float64(25)) / math.Log(float64(b.alphabet.Length()))
+	factor := 8.0 / math.Log2(float64(b.alphabet.Length()))
 	length := math.Ceil(factor * float64(len(u)))
 
 	return b.numToString(&num, int(length))
