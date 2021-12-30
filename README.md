@@ -58,10 +58,10 @@ import (
 	"github.com/lithammer/shortuuid/v3"
 )
 
-type base58Encoder struct {}
+type base58Encoder struct{}
 
 func (enc base58Encoder) Encode(u uuid.UUID) string {
-	return base58.Encode(u.Bytes())
+	return base58.Encode(u[:])
 }
 
 func (enc base58Encoder) Decode(s string) (uuid.UUID, error) {
