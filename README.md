@@ -20,13 +20,13 @@ similar-looking characters such as l, 1, I, O and 0.
 package main
 
 import (
-    "fmt"
+	"fmt"
 
-    "github.com/lithammer/shortuuid/v3"
+	"github.com/lithammer/shortuuid/v3"
 )
 
 func main() {
-    u := shortuuid.New() // Cekw67uyMpBGZLRP2HFVbe
+	u := shortuuid.New() // Cekw67uyMpBGZLRP2HFVbe
 }
 ```
 
@@ -51,25 +51,26 @@ Bring your own encoder! For example, base58 is popular among bitcoin.
 package main
 
 import (
-    "fmt"
-    "github.com/btcsuite/btcutil/base58"
-    "github.com/lithammer/shortuuid/v3"
-    "github.com/satori/go.uuid"
+	"fmt"
+
+	"github.com/btcsuite/btcutil/base58"
+	"github.com/google/uuid"
+	"github.com/lithammer/shortuuid/v3"
 )
 
 type base58Encoder struct {}
 
 func (enc base58Encoder) Encode(u uuid.UUID) string {
-    return base58.Encode(u.Bytes())
+	return base58.Encode(u.Bytes())
 }
 
 func (enc base58Encoder) Decode(s string) (uuid.UUID, error) {
-    return uuid.FromBytes(base58.Decode(s))
+	return uuid.FromBytes(base58.Decode(s))
 }
 
 func main() {
-    enc := base58Encoder{}
-    fmt.Println(shortuuid.NewWithEncoder(enc)) // 6R7VqaQHbzC1xwA5UueGe6
+	enc := base58Encoder{}
+	fmt.Println(shortuuid.NewWithEncoder(enc)) // 6R7VqaQHbzC1xwA5UueGe6
 }
 ```
 
