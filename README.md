@@ -22,11 +22,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/lithammer/shortuuid/v3"
+	"github.com/lithammer/shortuuid/v4"
 )
 
 func main() {
-	u := shortuuid.New() // Cekw67uyMpBGZLRP2HFVbe
+	u := shortuuid.New() // KwSysDpxcBU9FNhGkn2dCf
 }
 ```
 
@@ -42,7 +42,7 @@ characters long.
 
 ```go
 alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
-shortuuid.NewWithAlphabet(alphabet) // u=BFWRLr5dXbeWf==iasZi
+shortuuid.NewWithAlphabet(alphabet) // iZsai==fWebXd5rLRWFB=u
 ```
 
 Bring your own encoder! For example, base58 is popular among bitcoin.
@@ -55,7 +55,7 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/google/uuid"
-	"github.com/lithammer/shortuuid/v3"
+	"github.com/lithammer/shortuuid/v4"
 )
 
 type base58Encoder struct{}
