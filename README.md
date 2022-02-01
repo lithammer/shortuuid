@@ -1,7 +1,7 @@
 # shortuuid
 
 [![Build Status](https://github.com/lithammer/shortuuid/workflows/CI/badge.svg)](https://github.com/lithammer/shortuuid/actions)
-[![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/lithammer/shortuuid)
+[![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://pkg.go.dev/github.com/lithammer/shortuuid/v4)
 
 A Go library that generates concise, unambiguous, URL-safe UUIDs. Based on and
 compatible with the Python library
