@@ -10,7 +10,7 @@ import (
 const DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 type alphabet struct {
-	chars [57]string
+	chars [57]rune
 	len   int64
 }
 
@@ -26,7 +26,11 @@ func newAlphabet(s string) alphabet {
 	a := alphabet{
 		len: int64(len(abc)),
 	}
-	copy(a.chars[:], abc)
+
+	for i, char := range strings.Join(abc, "") {
+		a.chars[i] = char
+	}
+
 	return a
 }
 
@@ -36,13 +40,13 @@ func (a *alphabet) Length() int64 {
 
 // Index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
-func (a *alphabet) Index(t string) (int64, error) {
+func (a *alphabet) Index(t rune) (int64, error) {
 	for i, char := range a.chars {
 		if char == t {
 			return int64(i), nil
 		}
 	}
-	return 0, fmt.Errorf("Element '%v' is not part of the alphabet", t)
+	return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
 }
 
 // dudupe removes duplicate characters from s.
