@@ -25,6 +25,11 @@ jobs:
         env:
           GOPROXY: "https://proxy.golang.org"
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v2.5.2
+        with:
+          version: v1.44
+
       - name: Build
         run: go build -v .
 
