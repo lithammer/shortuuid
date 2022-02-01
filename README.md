@@ -5,7 +5,7 @@
 
 A Go library that generates concise, unambiguous, URL-safe UUIDs. Based on and
 compatible with the Python library
-[`shortuuid`](https://github.com/stochastic-technologies/shortuuid).
+[`shortuuid`](https://github.com/skorokithakis/shortuuid).
 
 Often, one needs to use non-sequential IDs in places where users will see them,
 but the IDs must be as concise and easy to use as possible. shortuuid solves
