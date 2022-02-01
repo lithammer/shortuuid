@@ -33,7 +33,9 @@ func NewWithNamespace(name string) string {
 	switch {
 	case name == "":
 		u = uuid.New()
-	case strings.HasPrefix(name, "http"):
+	case strings.HasPrefix(strings.ToLower(name), "http://"):
+		u = uuid.NewSHA1(uuid.NameSpaceURL, []byte(name))
+	case strings.HasPrefix(strings.ToLower(name), "https://"):
 		u = uuid.NewSHA1(uuid.NameSpaceURL, []byte(name))
 	default:
 		u = uuid.NewSHA1(uuid.NameSpaceDNS, []byte(name))
