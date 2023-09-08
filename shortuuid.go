@@ -50,3 +50,9 @@ func NewWithAlphabet(abc string) string {
 	enc := base57{newAlphabet(abc)}
 	return enc.Encode(uuid.New())
 }
+
+// WithAlphabet returns a new base57 enocder using the
+// alternative alphabet abc.
+func WithAlphabet(abc string) Encoder {
+	return base57{newAlphabet(abc)}
+}
