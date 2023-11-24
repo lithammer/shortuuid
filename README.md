@@ -26,7 +26,8 @@ import (
 )
 
 func main() {
-	u := shortuuid.New() // KwSysDpxcBU9FNhGkn2dCf
+	u := shortuuid.New()
+	fmt.Println(u) // KwSysDpxcBU9FNhGkn2dCf
 }
 ```
 
