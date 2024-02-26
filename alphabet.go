@@ -41,12 +41,15 @@ func (a *alphabet) Length() int64 {
 // Index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
 func (a *alphabet) Index(t rune) (int64, error) {
-	for i, char := range a.chars {
-		if char == t {
-			return int64(i), nil
-		}
+	i, found := sort.Find(len(a.chars), func(i int) int {
+		return int(t - a.chars[i])
+	})
+
+	if !found {
+		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
 	}
-	return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
+
+	return int64(i), nil
 }
 
 // dudupe removes duplicate characters from s.
