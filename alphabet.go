@@ -41,11 +41,11 @@ func (a *alphabet) Length() int64 {
 // Index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
 func (a *alphabet) Index(t rune) (int64, error) {
-	i, found := sort.Find(len(a.chars), func(i int) int {
-		return int(t - a.chars[i])
+	i := sort.Search(len(a.chars), func(i int) bool {
+		return a.chars[i] >= t
 	})
 
-	if !found {
+	if i >= len(a.chars) || a.chars[i] != t {
 		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
 	}
 
