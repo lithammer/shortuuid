@@ -26,7 +26,7 @@ jobs:
           GOPROXY: "https://proxy.golang.org"
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v5.1.0
+        uses: golangci/golangci-lint-action@v6.0.1
         with:
           version: v1.44
 
