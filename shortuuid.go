@@ -1,8 +1,6 @@
 package shortuuid
 
 import (
-	"strings"
-
 	"github.com/google/uuid"
 )
 
@@ -18,35 +16,40 @@ type Encoder interface {
 
 // New returns a new UUIDv4, encoded with base57.
 func New() string {
-	return DefaultEncoder.Encode(uuid.New())
+	rv, err := NewTyped(UUID_v4)
+	if err != nil {
+		panic(err)
+	}
+	return rv
 }
 
 // NewWithEncoder returns a new UUIDv4, encoded with enc.
 func NewWithEncoder(enc Encoder) string {
-	return enc.Encode(uuid.New())
+	rv, err := NewTypedWithEncoder(UUID_v4, enc)
+	if err != nil {
+		panic(err)
+	}
+	return rv
 }
 
 // NewWithNamespace returns a new UUIDv5 (or v4 if name is empty), encoded with base57.
 func NewWithNamespace(name string) string {
-	var u uuid.UUID
-
-	switch {
-	case name == "":
-		u = uuid.New()
-	case strings.HasPrefix(strings.ToLower(name), "http://"):
-		u = uuid.NewSHA1(uuid.NameSpaceURL, []byte(name))
-	case strings.HasPrefix(strings.ToLower(name), "https://"):
-		u = uuid.NewSHA1(uuid.NameSpaceURL, []byte(name))
-	default:
-		u = uuid.NewSHA1(uuid.NameSpaceDNS, []byte(name))
+	rv, err := NewTypedWithNamespace(UUID_v4, UUID_v5, name)
+	if err != nil {
+		panic(err)
 	}
 
-	return DefaultEncoder.Encode(u)
+	return rv
 }
 
 // NewWithAlphabet returns a new UUIDv4, encoded with base57 using the
 // alternative alphabet abc.
 func NewWithAlphabet(abc string) string {
 	enc := base57{newAlphabet(abc)}
-	return enc.Encode(uuid.New())
+	rv, err := NewTypedWithAlphabet(UUID_v4, abc, enc)
+	if err != nil {
+		panic(err)
+	}
+
+	return rv
 }
