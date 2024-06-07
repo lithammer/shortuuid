@@ -131,8 +131,16 @@ var testVector = []struct {
 func TestGeneration(t *testing.T) {
 	tests := []string{
 		"",
+		"http",
+		"http:",
+		"http:/",
+		"http_some",
 		"http://www.example.com/",
 		"HTTP://www.example.com/",
+		"https://www.example.com/",
+		"HTTPS://www.example.com/",
+		"HttPS://www.example.com/",
+		"httpS://www.example.com/",
 		"example.com/",
 	}
 
