@@ -66,7 +66,7 @@ func (b *base57) stringToNumBytes(s string) ([]byte, error) {
 	)
 
 	for _, char := range s {
-		n, err = n.mul64(uint64(b.alphabet.Length()))
+		n, err = n.mul64(alphabetLen)
 		if err != nil {
 			return nil, err
 		}
