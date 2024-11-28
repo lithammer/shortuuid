@@ -41,18 +41,16 @@ func (b *base57) numToString(number uint128) string {
 	var digit uint64
 	out := make([]rune, strLen)
 
-	i := 0
+	i := strLen - 1
 	for number.Hi > 0 || number.Lo > 0 {
 		number, digit = number.quoRem64(alphabetLen)
 		out[i] = b.alphabet.chars[digit]
-		i++
+		i--
 	}
-	for i < strLen {
+	for i >= 0 {
 		out[i] = b.alphabet.chars[0]
-		i++
+		i--
 	}
-
-	reverse(out)
 
 	return string(out)
 }
@@ -84,12 +82,4 @@ func (b *base57) stringToNumBytes(s string) ([]byte, error) {
 	buf := make([]byte, 16)
 	n.putBytes(buf)
 	return buf, nil
-}
-
-// reverse reverses a inline.
-func reverse(a []rune) {
-	n := len(a)
-	for i := 0; i < n/2; i++ {
-		a[i], a[n-1-i] = a[n-1-i], a[i]
-	}
 }
