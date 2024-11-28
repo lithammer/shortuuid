@@ -10,7 +10,10 @@ type base57 struct {
 	alphabet alphabet
 }
 
-const strLen = 22
+const (
+	strLen      = 22
+	alphabetLen = 57
+)
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
 // first according to the alphabet.
@@ -40,7 +43,7 @@ func (b *base57) numToString(number uint128) string {
 
 	i := 0
 	for number.Hi > 0 || number.Lo > 0 {
-		number, digit = number.quoRem64(uint64(b.alphabet.Length()))
+		number, digit = number.quoRem64(alphabetLen)
 		out[i] = b.alphabet.chars[digit]
 		i++
 	}
