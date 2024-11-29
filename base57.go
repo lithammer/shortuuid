@@ -2,7 +2,10 @@ package shortuuid
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/google/uuid"
+	"math/bits"
+	"strings"
 )
 
 type base57 struct {
@@ -22,64 +25,58 @@ func (b base57) Encode(u uuid.UUID) string {
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
+	var outIndexes [strLen]uint64
 
-	return b.numToString(num)
+	for i := strLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
+		num, outIndexes[i] = num.quoRem64(alphabetLen)
+	}
+
+	var sb strings.Builder
+	sb.Grow(strLen)
+	for i := 0; i < strLen; i++ {
+		sb.WriteRune(b.alphabet.chars[outIndexes[i]])
+	}
+	return sb.String()
 }
 
 // Decode decodes a string according to the alphabet into a uuid.UUID. If s is
 // too short, its most significant bits (MSB) will be padded with 0 (zero).
-func (b base57) Decode(u string) (uuid.UUID, error) {
-	buf, err := b.stringToNumBytes(u)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	return uuid.FromBytes(buf)
-}
-
-// numToString converts a number a string using the given alphabet.
-func (b *base57) numToString(number uint128) string {
-	var digit uint64
-	out := make([]rune, strLen)
-
-	i := strLen - 1
-	for number.Hi > 0 || number.Lo > 0 {
-		number, digit = number.quoRem64(alphabetLen)
-		out[i] = b.alphabet.chars[digit]
-		i--
-	}
-	for i >= 0 {
-		out[i] = b.alphabet.chars[0]
-		i--
-	}
-
-	return string(out)
-}
-
-// stringToNumBytes converts a string a number using the given alphabet.
-func (b *base57) stringToNumBytes(s string) ([]byte, error) {
-	var (
-		n     uint128
-		err   error
-		index int64
-	)
+func (b base57) Decode(s string) (u uuid.UUID, err error) {
+	var n uint128
+	var index int64
 
 	for _, char := range s {
-		n, err = n.mul64(alphabetLen)
-		if err != nil {
-			return nil, err
-		}
-
 		index, err = b.alphabet.Index(char)
 		if err != nil {
-			return nil, err
+			return
 		}
-
-		n, err = n.add64(uint64(index))
+		n, err = n.mulAdd64(alphabetLen, uint64(index))
 		if err != nil {
-			return nil, err
+			return
 		}
 	}
-	buf := make([]byte, 16)
-	n.putBytes(buf)
-	return buf, nil
+	binary.BigEndian.PutUint64(u[:8], n.Hi)
+	binary.BigEndian.PutUint64(u[8:], n.Lo)
+	return
+}
+
+type uint128 struct {
+	Lo, Hi uint64
+}
+
+func (u uint128) quoRem64(v uint64) (q uint128, r uint64) {
+	q.Hi, r = bits.Div64(0, u.Hi, v)
+	q.Lo, r = bits.Div64(r, u.Lo, v)
+	return
+}
+
+func (u uint128) mulAdd64(m uint64, a uint64) (uint128, error) {
+	hi, lo := bits.Mul64(u.Lo, m)
+	p0, p1 := bits.Mul64(u.Hi, m)
+	lo, c0 := bits.Add64(lo, a, 0)
+	hi, c1 := bits.Add64(hi, p1, c0)
+	if p0 != 0 || c1 != 0 {
+		return uint128{}, fmt.Errorf("number is out of range (need a 128-bit value)")
+	}
+	return uint128{lo, hi}, nil
 }
