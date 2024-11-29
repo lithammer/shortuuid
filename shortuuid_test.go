@@ -224,6 +224,6 @@ func BenchmarkEncoding(b *testing.B) {
 
 func BenchmarkDecoding(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = DefaultEncoder.Decode("c3eeb3e6-e577-4de2-b5bb-08371196b453")
+		_, _ = DefaultEncoder.Decode("nUfojcH2M5j9j3Tk5A8mf7")
 	}
 }
