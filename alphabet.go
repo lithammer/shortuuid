@@ -43,12 +43,19 @@ func (a *alphabet) Length() int64 {
 // Index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
 func (a *alphabet) Index(t rune) (int64, error) {
-	for i, char := range a.chars {
-		if char == t {
-			return int64(i), nil
+	i, j := 0, int(a.len)
+	for i < j {
+		h := int(uint(i+j) >> 1)
+		if a.chars[h] < t {
+			i = h + 1
+		} else {
+			j = h
 		}
 	}
-	return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
+	if i >= int(a.len) || a.chars[i] != t {
+		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
+	}
+	return int64(i), nil
 }
 
 // dedupe replaces consecutive runs of equal elements with a single copy.

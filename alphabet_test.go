@@ -1,7 +1,6 @@
 package shortuuid
 
 import (
-	"sort"
 	"testing"
 )
 
@@ -14,7 +13,7 @@ func TestDedupe(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		sort.Slice(test.in, func(i, j int) bool { return test.in[i] < test.in[j] })
+		sortRunes(test.in)
 		in := dedupe(test.in)
 		if string(in) != string(test.out) {
 			t.Errorf("expected %q, got %q", string(test.out), string(in))
