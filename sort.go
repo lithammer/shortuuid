@@ -30,7 +30,7 @@ func siftDownOrdered(data []rune, lo, hi, first int) {
 		if child+1 < hi && data[first+child] < data[first+child+1] {
 			child++
 		}
-		if data[first+child] < data[first+root] {
+		if data[first+child] <= data[first+root] {
 			return
 		}
 		data[first+root], data[first+child] = data[first+child], data[first+root]
@@ -108,7 +108,7 @@ func pdqsortOrdered(data []rune, a, b, limit int) {
 
 		// Probably the slice contains many duplicate elements, partition the slice into
 		// elements equal to and elements greater than the pivot.
-		if a > 0 && data[pivot] < data[a-1] {
+		if a > 0 && data[pivot] <= data[a-1] {
 			mid := partitionEqualOrdered(data, a, b, pivot)
 			a = mid
 			continue
@@ -142,7 +142,7 @@ func partitionOrdered(data []rune, a, b, pivot int) (newpivot int, alreadyPartit
 	for i <= j && data[i] < data[a] {
 		i++
 	}
-	for i <= j && data[a] < data[j] {
+	for i <= j && data[a] <= data[j] {
 		j--
 	}
 	if i > j {
@@ -157,7 +157,7 @@ func partitionOrdered(data []rune, a, b, pivot int) (newpivot int, alreadyPartit
 		for i <= j && data[i] < data[a] {
 			i++
 		}
-		for i <= j && data[a] < data[j] {
+		for i <= j && data[a] <= data[j] {
 			j--
 		}
 		if i > j {
@@ -178,7 +178,7 @@ func partitionEqualOrdered(data []rune, a, b, pivot int) (newpivot int) {
 	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
 
 	for {
-		for i <= j && data[i] < data[a] {
+		for i <= j && data[i] <= data[a] {
 			i++
 		}
 		for i <= j && data[a] < data[j] {
@@ -202,7 +202,7 @@ func partialInsertionSortOrdered(data []rune, a, b int) bool {
 	)
 	i := a + 1
 	for j := 0; j < maxSteps; j++ {
-		for i < b && data[i-1] < data[i] {
+		for i < b && data[i-1] <= data[i] {
 			i++
 		}
 
@@ -219,7 +219,7 @@ func partialInsertionSortOrdered(data []rune, a, b int) bool {
 		// Shift the smaller one to the left.
 		if i-a >= 2 {
 			for j := i - 1; j >= 1; j-- {
-				if data[j-1] < data[j] {
+				if data[j-1] <= data[j] {
 					break
 				}
 				data[j], data[j-1] = data[j-1], data[j]
@@ -228,7 +228,7 @@ func partialInsertionSortOrdered(data []rune, a, b int) bool {
 		// Shift the greater one to the right.
 		if b-i >= 2 {
 			for j := i + 1; j < b; j++ {
-				if data[j-1] < data[j] {
+				if data[j-1] <= data[j] {
 					break
 				}
 				data[j], data[j-1] = data[j-1], data[j]
