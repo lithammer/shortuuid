@@ -2,33 +2,35 @@ package shortuuid
 
 import (
 	"fmt"
-	"sort"
-	"strings"
+	"math"
 )
 
 // DefaultAlphabet is the default alphabet used.
 const DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 type alphabet struct {
-	chars [57]rune
-	len   int64
+	chars  []rune
+	len    int64
+	encLen int64
 }
 
-// Remove duplicates and sort it to ensure reproducability.
+// Remove duplicates and sort it to ensure reproducibility.
 func newAlphabet(s string) alphabet {
-	abc := dedupe(strings.Split(s, ""))
+	abc := []rune(s)
+	// sortRunes can be replaced with slices.Sort if upgraded to go 1.18+
+	// (use of generics avoids using reflect, and reduces allocations)
+	sortRunes(abc)
+	// dedupe can be replaced with slices.Compact() if upgraded to go 1.21+
+	abc = dedupe(abc)
 
-	if len(abc) != 57 {
-		panic("encoding alphabet is not 57-bytes long")
+	if len(abc) < 2 {
+		panic("encoding alphabet must be at least two characters")
 	}
 
-	sort.Strings(abc)
 	a := alphabet{
-		len: int64(len(abc)),
-	}
-
-	for i, char := range strings.Join(abc, "") {
-		a.chars[i] = char
+		chars:  abc,
+		len:    int64(len(abc)),
+		encLen: int64(math.Ceil(128 / math.Log2(float64(len(abc))))),
 	}
 
 	return a
@@ -49,17 +51,30 @@ func (a *alphabet) Index(t rune) (int64, error) {
 	return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
 }
 
-// dudupe removes duplicate characters from s.
-func dedupe(s []string) []string {
-	var out []string
-	m := make(map[string]bool)
+// dedupe replaces consecutive runs of equal elements with a single copy.
+// This is like the uniq command found on Unix.
+// dedupe modifies the contents of the slice s and returns the modified slice,
+// which may have a smaller length.
+// dedupe zeroes the elements between the new length and the original length.
+func dedupe(s []rune) []rune {
+	if len(s) < 2 {
+		return s
+	}
+	for k := 1; k < len(s); k++ {
+		if s[k] == s[k-1] {
+			s2 := s[k:]
+			for k2 := 1; k2 < len(s2); k2++ {
+				if s2[k2] != s2[k2-1] {
+					s[k] = s2[k2]
+					k++
+				}
+			}
 
-	for _, char := range s {
-		if _, ok := m[char]; !ok {
-			m[char] = true
-			out = append(out, char)
+			for k2 := k; k2 < len(s); k2++ { // zero/nil out the obsolete elements, for GC
+				s[k2] = 0
+			}
+			return s[:k]
 		}
 	}
-
-	return out
+	return s
 }

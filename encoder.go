@@ -8,49 +8,51 @@ import (
 	"strings"
 )
 
-type base57 struct {
+type encoder struct {
 	// alphabet is the character set to construct the UUID from.
 	alphabet alphabet
 }
 
-const (
-	strLen      = 22
-	alphabetLen = 57
-)
+const defaultEncLen = 22
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
 // first according to the alphabet.
-func (b base57) Encode(u uuid.UUID) string {
+func (e encoder) Encode(u uuid.UUID) string {
 	num := uint128{
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
-	var outIndexes [strLen]uint64
+	var outIndexes []uint64
+	if e.alphabet.encLen == defaultEncLen {
+		outIndexes = make([]uint64, defaultEncLen) // hack to avoid escaping to heap for base57 alphabet
+	} else {
+		outIndexes = make([]uint64, e.alphabet.encLen)
+	}
 
-	for i := strLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
-		num, outIndexes[i] = num.quoRem64(alphabetLen)
+	for i := e.alphabet.encLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
+		num, outIndexes[i] = num.quoRem64(uint64(e.alphabet.len))
 	}
 
 	var sb strings.Builder
-	sb.Grow(strLen)
-	for i := 0; i < strLen; i++ {
-		sb.WriteRune(b.alphabet.chars[outIndexes[i]])
+	sb.Grow(int(e.alphabet.encLen))
+	for i := 0; i < int(e.alphabet.encLen); i++ {
+		sb.WriteRune(e.alphabet.chars[outIndexes[i]])
 	}
 	return sb.String()
 }
 
 // Decode decodes a string according to the alphabet into a uuid.UUID. If s is
 // too short, its most significant bits (MSB) will be padded with 0 (zero).
-func (b base57) Decode(s string) (u uuid.UUID, err error) {
+func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 	var n uint128
 	var index int64
 
 	for _, char := range s {
-		index, err = b.alphabet.Index(char)
+		index, err = e.alphabet.Index(char)
 		if err != nil {
 			return
 		}
-		n, err = n.mulAdd64(alphabetLen, uint64(index))
+		n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
 		if err != nil {
 			return
 		}
