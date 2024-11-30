@@ -51,12 +51,3 @@ func TestAlphabetIndexError(t *testing.T) {
 		t.Errorf("expected an error, got a valid index %d", idx)
 	}
 }
-
-func BenchmarkAlphabetIndex(b *testing.B) {
-	abc := newAlphabet(DefaultAlphabet)
-	for i := 0; i < b.N; i++ {
-		for _, ch := range DefaultAlphabet {
-			_, _ = abc.Index(ch)
-		}
-	}
-}

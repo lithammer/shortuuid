@@ -13,7 +13,10 @@ type encoder struct {
 	alphabet alphabet
 }
 
-const defaultEncLen = 22
+const (
+	defaultBase   = 57
+	defaultEncLen = 22
+)
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
 // first according to the alphabet.
@@ -23,14 +26,16 @@ func (e encoder) Encode(u uuid.UUID) string {
 		binary.BigEndian.Uint64(u[:8]),
 	}
 	var outIndexes []uint64
-	if e.alphabet.encLen == defaultEncLen {
+	if e.alphabet.len == defaultBase {
 		outIndexes = make([]uint64, defaultEncLen) // hack to avoid escaping to heap for base57 alphabet
+		for i := e.alphabet.encLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
+			num, outIndexes[i] = num.quoRem64(defaultBase) // increased performance if called with constant
+		}
 	} else {
 		outIndexes = make([]uint64, e.alphabet.encLen)
-	}
-
-	for i := e.alphabet.encLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
-		num, outIndexes[i] = num.quoRem64(uint64(e.alphabet.len))
+		for i := e.alphabet.encLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
+			num, outIndexes[i] = num.quoRem64(uint64(e.alphabet.len))
+		}
 	}
 
 	var sb strings.Builder
