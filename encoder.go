@@ -29,7 +29,7 @@ func (e encoder) Encode(u uuid.UUID) string {
 	if e.alphabet.len == defaultBase {
 		outIndexes = make([]uint64, defaultEncLen) // hack to avoid escaping to heap for base57 alphabet
 		for i := e.alphabet.encLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
-			num, outIndexes[i] = num.quoRem64(defaultBase) // increased performance if called with constant
+			num, outIndexes[i] = num.quoRem64(defaultBase) // compiler optimization using constant for default base
 		}
 	} else {
 		outIndexes = make([]uint64, e.alphabet.encLen)
@@ -57,7 +57,11 @@ func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 		if err != nil {
 			return
 		}
-		n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
+		if e.alphabet.len == defaultBase {
+			n, err = n.mulAdd64(defaultBase, uint64(index)) // compiler optimization using constant for default base
+		} else {
+			n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
+		}
 		if err != nil {
 			return
 		}
