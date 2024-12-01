@@ -26,10 +26,10 @@ func (e encoder) Encode(u uuid.UUID) string {
 		binary.BigEndian.Uint64(u[:8]),
 	}
 	var outIndexes []uint64
-	if e.alphabet.len == defaultBase {
-		outIndexes = make([]uint64, defaultEncLen) // hack to avoid escaping to heap for base57 alphabet
-		for i := e.alphabet.encLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
-			num, outIndexes[i] = num.quoRem64(defaultBase) // compiler optimization using constant for default base
+	if e.alphabet.len == defaultBase { // compiler optimizations using constants for default base
+		outIndexes = make([]uint64, defaultEncLen) // avoids escaping to heap for base57 when used with constant
+		for i := defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
+			num, outIndexes[i] = num.quoRem64(defaultBase)
 		}
 	} else {
 		outIndexes = make([]uint64, e.alphabet.encLen)
@@ -57,8 +57,8 @@ func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 		if err != nil {
 			return
 		}
-		if e.alphabet.len == defaultBase {
-			n, err = n.mulAdd64(defaultBase, uint64(index)) // compiler optimization using constant for default base
+		if e.alphabet.len == defaultBase { // compiler optimization using constant for default base
+			n, err = n.mulAdd64(defaultBase, uint64(index))
 		} else {
 			n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
 		}
