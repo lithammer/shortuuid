@@ -209,6 +209,16 @@ func TestNewWithAlphabet(t *testing.T) {
 	}
 }
 
+func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
+	abc := DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ"
+	enc := encoder{newAlphabet(abc)}
+	u1, _ := uuid.Parse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438374")
+	u2 := enc.Encode(u1)
+	if u2 != "jatbjAAgXfcYe5sMSXGCAお" {
+		t.Errorf("expected uuid to be %q, got %q", "jatbjAAgXfcYe5sMSXGCAお", u2)
+	}
+}
+
 func TestAlphabetCustomLen(t *testing.T) {
 	abc := "21345687654123456"
 	enc := encoder{newAlphabet(abc)}
