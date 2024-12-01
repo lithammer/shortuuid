@@ -18,7 +18,7 @@ const (
 	defaultBase    = 57
 	defaultEncLen  = 22
 	defaultNDigits = 10
-	defaultDivisor = 362033331456891249
+	defaultDivisor = 362033331456891249 // 57^10
 )
 
 func maxPow(b uint64) (d uint64, n int) {
