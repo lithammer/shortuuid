@@ -40,6 +40,7 @@ func newAlphabet(s string) alphabet {
 	for _, c := range a.chars {
 		if c > rune1Max {
 			a.singleBytes = false
+			break
 		}
 	}
 
