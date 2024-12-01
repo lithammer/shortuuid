@@ -262,6 +262,14 @@ func BenchmarkEncoding(b *testing.B) {
 	}
 }
 
+func BenchmarkEncodingBase57NonSingleBytes(b *testing.B) {
+	u := uuid.New()
+	enc := encoder{alphabet: newAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghiうえおなにぬねのウエオナニヌネノ")}
+	for i := 0; i < b.N; i++ {
+		enc.Encode(u)
+	}
+}
+
 func BenchmarkEncodingBase16(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
