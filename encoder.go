@@ -21,6 +21,40 @@ const (
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
 // first according to the alphabet.
 func (e encoder) Encode(u uuid.UUID) string {
+	if e.alphabet.singleBytes {
+		return e.encodeSingleBytes(u)
+	}
+	return e.encode(u)
+}
+
+func (e encoder) encodeSingleBytes(u uuid.UUID) string {
+	num := uint128{
+		binary.BigEndian.Uint64(u[8:]),
+		binary.BigEndian.Uint64(u[:8]),
+	}
+	var ind uint64
+	var i int
+	var buf []byte
+	if e.alphabet.len == defaultBase { // compiler optimizations using constants for default base
+		buf = make([]byte, defaultEncLen)
+		for i = defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
+			num, ind = num.quoRem64(defaultBase)
+			buf[i] = byte(e.alphabet.chars[ind])
+		}
+	} else {
+		buf = make([]byte, e.alphabet.encLen)
+		for i = int(e.alphabet.encLen - 1); num.Hi > 0 || num.Lo > 0; i-- {
+			num, ind = num.quoRem64(uint64(e.alphabet.len))
+			buf[i] = byte(e.alphabet.chars[ind])
+		}
+	}
+	for ; i >= 0; i-- {
+		buf[i] = byte(e.alphabet.chars[0])
+	}
+	return string(buf[:])
+}
+
+func (e encoder) encode(u uuid.UUID) string {
 	num := uint128{
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),

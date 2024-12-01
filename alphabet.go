@@ -6,12 +6,16 @@ import (
 )
 
 // DefaultAlphabet is the default alphabet used.
-const DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+const (
+	DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+	rune1Max        = 1<<7 - 1
+)
 
 type alphabet struct {
-	chars  []rune
-	len    int64
-	encLen int64
+	chars       []rune
+	len         int64
+	encLen      int64
+	singleBytes bool
 }
 
 // Remove duplicates and sort it to ensure reproducibility.
@@ -28,9 +32,15 @@ func newAlphabet(s string) alphabet {
 	}
 
 	a := alphabet{
-		chars:  abc,
-		len:    int64(len(abc)),
-		encLen: int64(math.Ceil(128 / math.Log2(float64(len(abc))))),
+		chars:       abc,
+		len:         int64(len(abc)),
+		encLen:      int64(math.Ceil(128 / math.Log2(float64(len(abc))))),
+		singleBytes: true,
+	}
+	for _, c := range a.chars {
+		if c > rune1Max {
+			a.singleBytes = false
+		}
 	}
 
 	return a
