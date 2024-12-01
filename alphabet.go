@@ -2,6 +2,7 @@ package shortuuid
 
 import (
 	"fmt"
+	"golang.org/x/exp/slices"
 	"math"
 )
 
@@ -21,11 +22,8 @@ type alphabet struct {
 // Remove duplicates and sort it to ensure reproducibility.
 func newAlphabet(s string) alphabet {
 	abc := []rune(s)
-	// sortRunes can be replaced with slices.Sort if upgraded to go 1.18+
-	// (use of generics avoids using reflect, and reduces allocations)
-	sortRunes(abc)
-	// dedupe can be replaced with slices.Compact() if upgraded to go 1.21+
-	abc = dedupe(abc)
+	slices.Sort(abc)
+	abc = slices.Compact(abc)
 
 	if len(abc) < 2 {
 		panic("encoding alphabet must be at least two characters")
@@ -67,32 +65,4 @@ func (a *alphabet) Index(t rune) (int64, error) {
 		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
 	}
 	return int64(i), nil
-}
-
-// dedupe replaces consecutive runs of equal elements with a single copy.
-// This is like the uniq command found on Unix.
-// dedupe modifies the contents of the slice s and returns the modified slice,
-// which may have a smaller length.
-// dedupe zeroes the elements between the new length and the original length.
-func dedupe(s []rune) []rune {
-	if len(s) < 2 {
-		return s
-	}
-	for k := 1; k < len(s); k++ {
-		if s[k] == s[k-1] {
-			s2 := s[k:]
-			for k2 := 1; k2 < len(s2); k2++ {
-				if s2[k2] != s2[k2-1] {
-					s[k] = s2[k2]
-					k++
-				}
-			}
-
-			for k2 := k; k2 < len(s); k2++ { // zero/nil out the obsolete elements, for GC
-				s[k2] = 0
-			}
-			return s[:k]
-		}
-	}
-	return s
 }
