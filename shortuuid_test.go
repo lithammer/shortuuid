@@ -229,6 +229,26 @@ func TestAlphabetCustomLen(t *testing.T) {
 	}
 }
 
+func TestAlphabetNonSingleByteSymbols(t *testing.T) {
+	abc := "うえおなにぬねのウエオナニヌネノ"
+	enc := encoder{newAlphabet(abc)}
+	u1, _ := uuid.Parse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
+	exp := "えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお"
+	u2 := enc.Encode(u1)
+	if u2 != exp {
+		t.Errorf("expected uuid to be %q, got %q", exp, u2)
+		return
+	}
+	u3, err := enc.Decode(u2)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if u1 != u3 {
+		t.Errorf("expected %q, got %q", u1, u3)
+	}
+}
+
 func BenchmarkUUID(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		New()
@@ -242,14 +262,56 @@ func BenchmarkEncoding(b *testing.B) {
 	}
 }
 
+func BenchmarkEncodingBase16(b *testing.B) {
+	u := uuid.New()
+	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
+	for i := 0; i < b.N; i++ {
+		enc.Encode(u)
+	}
+}
+
+func BenchmarkEncodingBase16NonSingleByteSymbols(b *testing.B) {
+	u := uuid.New()
+	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
+	for i := 0; i < b.N; i++ {
+		enc.Encode(u)
+	}
+}
+
 func BenchmarkDecoding(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = DefaultEncoder.Decode("nUfojcH2M5j9j3Tk5A8mf7")
 	}
 }
 
+func BenchmarkDecodingBase16(b *testing.B) {
+	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
+	for i := 0; i < b.N; i++ {
+		_, _ = enc.Decode("b430e18862a84ec58068d03898d94f5f")
+	}
+}
+
+func BenchmarkDecodingBase16NonSingleByteSymbols(b *testing.B) {
+	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
+	for i := 0; i < b.N; i++ {
+		_, _ = enc.Decode("えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお")
+	}
+}
+
 func BenchmarkNewWithAlphabet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = NewWithAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy!")
+	}
+}
+
+func BenchmarkNewWithAlphabetBase16(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewWithAlphabet("0123456789abcdef")
+	}
+}
+
+func BenchmarkNewWithAlphabetBase16NonSingleByteSymbols(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewWithAlphabet("うえおなにぬねのウエオナニヌネノ")
 	}
 }
