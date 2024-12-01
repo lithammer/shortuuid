@@ -229,7 +229,7 @@ func TestAlphabetCustomLen(t *testing.T) {
 	}
 }
 
-func TestAlphabetNonSingleByteSymbols(t *testing.T) {
+func TestAlphabet_MB(t *testing.T) {
 	abc := "うえおなにぬねのウエオナニヌネノ"
 	enc := encoder{newAlphabet(abc)}
 	u1, _ := uuid.Parse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
@@ -262,7 +262,7 @@ func BenchmarkEncoding(b *testing.B) {
 	}
 }
 
-func BenchmarkEncodingBase57NonSingleBytes(b *testing.B) {
+func BenchmarkEncodingB57_MB(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghiうえおなにぬねのウエオナニヌネノ")}
 	for i := 0; i < b.N; i++ {
@@ -270,7 +270,7 @@ func BenchmarkEncodingBase57NonSingleBytes(b *testing.B) {
 	}
 }
 
-func BenchmarkEncodingBase16(b *testing.B) {
+func BenchmarkEncodingB16(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
 	for i := 0; i < b.N; i++ {
@@ -278,7 +278,7 @@ func BenchmarkEncodingBase16(b *testing.B) {
 	}
 }
 
-func BenchmarkEncodingBase16NonSingleByteSymbols(b *testing.B) {
+func BenchmarkEncodingB16_MB(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
 	for i := 0; i < b.N; i++ {
@@ -292,14 +292,14 @@ func BenchmarkDecoding(b *testing.B) {
 	}
 }
 
-func BenchmarkDecodingBase16(b *testing.B) {
+func BenchmarkDecodingB16(b *testing.B) {
 	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
 	for i := 0; i < b.N; i++ {
 		_, _ = enc.Decode("b430e18862a84ec58068d03898d94f5f")
 	}
 }
 
-func BenchmarkDecodingBase16NonSingleByteSymbols(b *testing.B) {
+func BenchmarkDecodingB16_MB(b *testing.B) {
 	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
 	for i := 0; i < b.N; i++ {
 		_, _ = enc.Decode("えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお")
@@ -312,13 +312,13 @@ func BenchmarkNewWithAlphabet(b *testing.B) {
 	}
 }
 
-func BenchmarkNewWithAlphabetBase16(b *testing.B) {
+func BenchmarkNewWithAlphabetB16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = NewWithAlphabet("0123456789abcdef")
 	}
 }
 
-func BenchmarkNewWithAlphabetBase16NonSingleByteSymbols(b *testing.B) {
+func BenchmarkNewWithAlphabetB16_MB(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = NewWithAlphabet("うえおなにぬねのウエオナニヌネノ")
 	}
