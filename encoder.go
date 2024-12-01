@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/google/uuid"
+	"math"
 	"math/bits"
 	"strings"
 )
@@ -14,9 +15,20 @@ type encoder struct {
 }
 
 const (
-	defaultBase   = 57
-	defaultEncLen = 22
+	defaultBase    = 57
+	defaultEncLen  = 22
+	defaultNDigits = 10
+	defaultDivisor = 362033331456891249
 )
+
+func maxPow(b uint64) (d uint64, n int) {
+	d, n = b, 1
+	for m := math.MaxUint64 / b; d <= m; {
+		d *= b
+		n++
+	}
+	return
+}
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
 // first according to the alphabet.
@@ -32,20 +44,30 @@ func (e encoder) encodeSingleBytes(u uuid.UUID) string {
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
-	var ind uint64
+	var r uint64
 	var i int
 	var buf []byte
 	if e.alphabet.len == defaultBase { // compiler optimizations using constants for default base
 		buf = make([]byte, defaultEncLen)
-		for i = defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
-			num, ind = num.quoRem64(defaultBase)
-			buf[i] = byte(e.alphabet.chars[ind])
+		for i = defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; {
+			num, r = num.quoRem64(defaultDivisor)
+			for j := 0; j < defaultNDigits && i >= 0; j++ {
+				buf[i] = byte(e.alphabet.chars[r%defaultBase])
+				r /= defaultBase
+				i--
+			}
 		}
 	} else {
 		buf = make([]byte, e.alphabet.encLen)
-		for i = int(e.alphabet.encLen - 1); num.Hi > 0 || num.Lo > 0; i-- {
-			num, ind = num.quoRem64(uint64(e.alphabet.len))
-			buf[i] = byte(e.alphabet.chars[ind])
+		l := uint64(e.alphabet.len)
+		d, n := maxPow(l)
+		for i = int(e.alphabet.encLen - 1); num.Hi > 0 || num.Lo > 0; {
+			num, r = num.quoRem64(d)
+			for j := 0; j < n && i >= 0; j++ {
+				buf[i] = byte(e.alphabet.chars[r%l])
+				r /= l
+				i--
+			}
 		}
 	}
 	for ; i >= 0; i-- {
@@ -59,16 +81,29 @@ func (e encoder) encode(u uuid.UUID) string {
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
+	var r uint64
 	var outIndexes []uint64
 	if e.alphabet.len == defaultBase { // compiler optimizations using constants for default base
 		outIndexes = make([]uint64, defaultEncLen) // avoids escaping to heap for base57 when used with constant
-		for i := defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
-			num, outIndexes[i] = num.quoRem64(defaultBase)
+		for i := defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; {
+			num, r = num.quoRem64(defaultDivisor)
+			for j := 0; j < defaultNDigits && i >= 0; j++ {
+				outIndexes[i] = r % defaultBase
+				r /= defaultBase
+				i--
+			}
 		}
 	} else {
 		outIndexes = make([]uint64, e.alphabet.encLen)
-		for i := e.alphabet.encLen - 1; num.Hi > 0 || num.Lo > 0; i-- {
-			num, outIndexes[i] = num.quoRem64(uint64(e.alphabet.len))
+		l := uint64(e.alphabet.len)
+		d, n := maxPow(l)
+		for i := int(e.alphabet.encLen - 1); num.Hi > 0 || num.Lo > 0; {
+			num, r = num.quoRem64(d)
+			for j := 0; j < n && i >= 0; j++ {
+				outIndexes[i] = r % l
+				r /= l
+				i--
+			}
 		}
 	}
 
