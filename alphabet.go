@@ -2,8 +2,8 @@ package shortuuid
 
 import (
 	"fmt"
-	"golang.org/x/exp/slices"
 	"math"
+	"slices"
 )
 
 // DefaultAlphabet is the default alphabet used.
@@ -14,6 +14,7 @@ const (
 
 type alphabet struct {
 	chars       []rune
+	indexMap    map[rune]int
 	len         int64
 	encLen      int64
 	singleBytes bool
@@ -34,12 +35,13 @@ func newAlphabet(s string) alphabet {
 		len:         int64(len(abc)),
 		encLen:      int64(math.Ceil(128 / math.Log2(float64(len(abc))))),
 		singleBytes: true,
+		indexMap:    make(map[rune]int, len(abc)),
 	}
-	for _, c := range a.chars {
+	for i, c := range a.chars {
 		if c > rune1Max {
 			a.singleBytes = false
-			break
 		}
+		a.indexMap[c] = i
 	}
 
 	return a
@@ -52,17 +54,8 @@ func (a *alphabet) Length() int64 {
 // Index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
 func (a *alphabet) Index(t rune) (int64, error) {
-	i, j := 0, int(a.len)
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if a.chars[h] < t {
-			i = h + 1
-		} else {
-			j = h
-		}
+	if i, ok := a.indexMap[t]; ok {
+		return int64(i), nil
 	}
-	if i >= int(a.len) || a.chars[i] != t {
-		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
-	}
-	return int64(i), nil
+	return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
 }
