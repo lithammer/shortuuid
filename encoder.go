@@ -126,11 +126,7 @@ func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 		if err != nil {
 			return
 		}
-		if e.alphabet.len == defaultBase { // compiler optimization using constant for default base
-			n, err = n.mulAdd64(defaultBase, uint64(index))
-		} else {
-			n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
-		}
+		n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
 		if err != nil {
 			return
 		}
