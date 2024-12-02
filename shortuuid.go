@@ -8,7 +8,7 @@ import (
 
 // DefaultEncoder is the default encoder uses when generating new UUIDs, and is
 // based on Base57.
-var DefaultEncoder = &base57{newAlphabet(DefaultAlphabet)}
+var DefaultEncoder = &encoder{newAlphabet(DefaultAlphabet)}
 
 // Encoder is an interface for encoding/decoding UUIDs to strings.
 type Encoder interface {
@@ -33,9 +33,9 @@ func NewWithNamespace(name string) string {
 	switch {
 	case name == "":
 		u = uuid.New()
-	case strings.HasPrefix(strings.ToLower(name), "http://"):
+	case hasPrefixCaseInsensitive(name, "https://"):
 		u = uuid.NewSHA1(uuid.NameSpaceURL, []byte(name))
-	case strings.HasPrefix(strings.ToLower(name), "https://"):
+	case hasPrefixCaseInsensitive(name, "http://"):
 		u = uuid.NewSHA1(uuid.NameSpaceURL, []byte(name))
 	default:
 		u = uuid.NewSHA1(uuid.NameSpaceDNS, []byte(name))
@@ -47,6 +47,10 @@ func NewWithNamespace(name string) string {
 // NewWithAlphabet returns a new UUIDv4, encoded with base57 using the
 // alternative alphabet abc.
 func NewWithAlphabet(abc string) string {
-	enc := base57{newAlphabet(abc)}
+	enc := encoder{newAlphabet(abc)}
 	return enc.Encode(uuid.New())
+}
+
+func hasPrefixCaseInsensitive(s, prefix string) bool {
+	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }

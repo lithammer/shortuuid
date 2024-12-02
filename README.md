@@ -38,8 +38,9 @@ instead of `New()`.
 shortuuid.NewWithNamespace("http://example.com")
 ```
 
-It's possible to use a custom alphabet as well, though it has to be 57
-characters long.
+It's possible to use a custom alphabet as well (at least 2
+characters long).  
+It will automatically sort and remove duplicates from your alphabet to ensure consistency
 
 ```go
 alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
