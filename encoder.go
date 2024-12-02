@@ -3,10 +3,11 @@ package shortuuid
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/google/uuid"
 	"math"
 	"math/bits"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type encoder struct {
