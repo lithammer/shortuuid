@@ -333,3 +333,21 @@ func BenchmarkNewWithAlphabetB16_MB(b *testing.B) {
 		_ = NewWithAlphabet("うえおなにぬねのウエオナニヌネノ")
 	}
 }
+
+func BenchmarkNewWithNamespace(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewWithNamespace("someaveragelengthurl")
+	}
+}
+
+func BenchmarkNewWithNamespaceHttp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewWithNamespace("http://someaveragelengthurl.test")
+	}
+}
+
+func BenchmarkNewWithNamespaceHttps(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewWithNamespace("https://someaveragelengthurl.test")
+	}
+}
