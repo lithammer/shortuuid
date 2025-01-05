@@ -3,11 +3,11 @@ package shortuuid
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/google/uuid"
 	"math"
 	"math/bits"
-	"strings"
-
-	"github.com/google/uuid"
+	"unicode/utf8"
+	"unsafe"
 )
 
 type encoder struct {
@@ -20,6 +20,24 @@ const (
 	defaultEncLen  = 22
 	defaultNDigits = 10
 	defaultDivisor = 362033331456891249 // 57^10
+
+	tx = 0b10000000
+	t2 = 0b11000000
+	t3 = 0b11100000
+	t4 = 0b11110000
+
+	maskx = 0b00111111
+
+	rune1Max = 1<<7 - 1
+	rune2Max = 1<<11 - 1
+	rune3Max = 1<<16 - 1
+
+	surrogateMin = 0xD800
+	surrogateMax = 0xDFFF
+
+	runeErrorByte0 = t3 | (utf8.RuneError >> 12)
+	runeErrorByte1 = tx | (utf8.RuneError>>6)&maskx
+	runeErrorByte2 = tx | utf8.RuneError&maskx
 )
 
 func maxPow(b uint64) (d uint64, n int) {
@@ -34,86 +52,82 @@ func maxPow(b uint64) (d uint64, n int) {
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
 // first according to the alphabet.
 func (e encoder) Encode(u uuid.UUID) string {
-	if e.alphabet.singleBytes {
-		return e.encodeSingleBytes(u)
-	}
-	return e.encode(u)
-}
-
-func (e encoder) encodeSingleBytes(u uuid.UUID) string {
 	num := uint128{
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
-	var r uint64
+	if e.alphabet.len == defaultBase && e.alphabet.maxBytes == 1 {
+		return e.defaultEncode(num)
+	}
+	return e.encode(num)
+}
+
+func (e encoder) defaultEncode(num uint128) string { // compiler optimizes a lot of divisions by constant
 	var i int
-	var buf []byte
-	if e.alphabet.len == defaultBase { // compiler optimizations using constants for default base
-		buf = make([]byte, defaultEncLen)
-		for i = defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; {
-			num, r = num.quoRem64(defaultDivisor)
-			for j := 0; j < defaultNDigits && i >= 0; j++ {
-				buf[i] = byte(e.alphabet.chars[r%defaultBase])
-				r /= defaultBase
-				i--
-			}
-		}
-	} else {
-		buf = make([]byte, e.alphabet.encLen)
-		l := uint64(e.alphabet.len)
-		d, n := maxPow(l)
-		for i = int(e.alphabet.encLen - 1); num.Hi > 0 || num.Lo > 0; {
-			num, r = num.quoRem64(d)
-			for j := 0; j < n && i >= 0; j++ {
-				buf[i] = byte(e.alphabet.chars[r%l])
-				r /= l
-				i--
-			}
+	var r uint64
+	buf := make([]byte, defaultEncLen)
+	for i = defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; {
+		num, r = num.quoRem64(defaultDivisor)
+		for j := 0; j < defaultNDigits && i >= 0; j++ {
+			buf[i] = byte(e.alphabet.chars[r%defaultBase])
+			r /= defaultBase
+			i--
 		}
 	}
 	for ; i >= 0; i-- {
 		buf[i] = byte(e.alphabet.chars[0])
 	}
-	return string(buf[:])
+	return string(buf)
 }
 
-func (e encoder) encode(u uuid.UUID) string {
-	num := uint128{
-		binary.BigEndian.Uint64(u[8:]),
-		binary.BigEndian.Uint64(u[:8]),
-	}
-	var r uint64
-	var outIndexes []uint64
-	if e.alphabet.len == defaultBase { // compiler optimizations using constants for default base
-		outIndexes = make([]uint64, defaultEncLen) // avoids escaping to heap for base57 when used with constant
-		for i := defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; {
-			num, r = num.quoRem64(defaultDivisor)
-			for j := 0; j < defaultNDigits && i >= 0; j++ {
-				outIndexes[i] = r % defaultBase
-				r /= defaultBase
-				i--
-			}
-		}
-	} else {
-		outIndexes = make([]uint64, e.alphabet.encLen)
-		l := uint64(e.alphabet.len)
-		d, n := maxPow(l)
-		for i := int(e.alphabet.encLen - 1); num.Hi > 0 || num.Lo > 0; {
-			num, r = num.quoRem64(d)
-			for j := 0; j < n && i >= 0; j++ {
-				outIndexes[i] = r % l
-				r /= l
-				i--
-			}
-		}
-	}
+func (e encoder) encode(num uint128) string {
+	var r, ind uint64
+	i := e.alphabet.encLen - 1
+	buf := make([]byte, e.alphabet.encLen*e.alphabet.maxBytes)
+	curByteInd := len(buf) - 1
+	l := uint64(e.alphabet.len)
+	d, n := maxPow(l)
 
-	var sb strings.Builder
-	sb.Grow(int(e.alphabet.encLen))
-	for i := 0; i < int(e.alphabet.encLen); i++ {
-		sb.WriteRune(e.alphabet.chars[outIndexes[i]])
+	for num.Hi > 0 || num.Lo > 0 {
+		num, r = num.quoRem64(d)
+		for j := 0; j < n && i >= 0; j++ {
+			r, ind = r/l, r%l
+			curByteInd -= placeRuneEndingAt(buf, e.alphabet.chars[ind], curByteInd)
+			i--
+		}
 	}
-	return sb.String()
+	for ; i >= 0; i-- {
+		curByteInd -= placeRuneEndingAt(buf, e.alphabet.chars[0], curByteInd)
+	}
+	return unsafe.String(&buf[curByteInd+1], len(buf)-curByteInd-1)
+}
+
+func placeRuneEndingAt(p []byte, r rune, ind int) int {
+	switch i := uint32(r); {
+	case i <= rune1Max:
+		p[ind] = byte(r)
+		return 1
+	case i <= rune2Max:
+		p[ind] = tx | byte(r)&maskx
+		p[ind-1] = t2 | byte(r>>6)
+		return 2
+	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
+		p[ind] = tx | byte(r)&maskx
+		p[ind-1] = tx | byte(r>>6)&maskx
+		p[ind-2] = t3 | byte(r>>12)
+		return 3
+	case i > rune3Max && i <= utf8.MaxRune:
+		p[ind] = tx | byte(r)&maskx
+		p[ind-1] = tx | byte(r>>6)&maskx
+		p[ind-2] = tx | byte(r>>12)&maskx
+		p[ind-3] = t4 | byte(r>>18)
+		return 4
+	default:
+		p[ind] = runeErrorByte2
+		p[ind-1] = runeErrorByte1
+		p[ind-2] = runeErrorByte0
+		return 3
+	}
 }
 
 // Decode decodes a string according to the alphabet into a uuid.UUID. If s is
