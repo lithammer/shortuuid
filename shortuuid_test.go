@@ -146,11 +146,7 @@ func TestGeneration(t *testing.T) {
 
 func TestEncoding(t *testing.T) {
 	for _, test := range testVector {
-		u, err := uuid.Parse(test.uuid)
-		if err != nil {
-			t.Error(err)
-		}
-
+		u := uuid.MustParse(test.uuid)
 		suuid := DefaultEncoder.Encode(u)
 
 		if suuid != test.shortuuid {
@@ -161,10 +157,7 @@ func TestEncoding(t *testing.T) {
 
 func TestDecoding(t *testing.T) {
 	for _, test := range testVector {
-		u1, err := uuid.Parse(test.uuid)
-		if err != nil {
-			t.Error(err)
-		}
+		u1 := uuid.MustParse(test.uuid)
 
 		u2, err := DefaultEncoder.Decode(test.shortuuid)
 		if err != nil {
@@ -202,7 +195,7 @@ func TestDecodingErrors(t *testing.T) {
 func TestNewWithAlphabet(t *testing.T) {
 	abc := DefaultAlphabet[:len(DefaultAlphabet)-1] + "="
 	enc := encoder{newAlphabet(abc)}
-	u1, _ := uuid.Parse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
+	u1 := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
 	u2 := enc.Encode(u1)
 	if u2 != "iZsai==fWebXd5rLRWFB=u" {
 		t.Errorf("expected uuid to be %q, got %q", "u=BFWRLr5dXbeWf==iasZi", u2)
@@ -212,7 +205,7 @@ func TestNewWithAlphabet(t *testing.T) {
 func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
 	abc := DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ"
 	enc := encoder{newAlphabet(abc)}
-	u1, _ := uuid.Parse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438374")
+	u1 := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438374")
 	u2 := enc.Encode(u1)
 	if u2 != "jatbjAAgXfcYe5sMSXGCAお" {
 		t.Errorf("expected uuid to be %q, got %q", "jatbjAAgXfcYe5sMSXGCAお", u2)
@@ -222,7 +215,7 @@ func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
 func TestAlphabetCustomLen(t *testing.T) {
 	abc := "21345687654123456"
 	enc := encoder{newAlphabet(abc)}
-	u1, _ := uuid.Parse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
+	u1 := uuid.MustParse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
 	exp := "1348474176355756628268227744454847411355453"
 	u2 := enc.Encode(u1)
 	if u2 != exp {
@@ -242,7 +235,7 @@ func TestAlphabetCustomLen(t *testing.T) {
 func TestAlphabet_MB(t *testing.T) {
 	abc := "うえおなにぬねのウエオナニヌネノ"
 	enc := encoder{newAlphabet(abc)}
-	u1, _ := uuid.Parse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
+	u1 := uuid.MustParse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
 	exp := "えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお"
 	u2 := enc.Encode(u1)
 	if u2 != exp {
