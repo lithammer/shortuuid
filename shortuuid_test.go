@@ -223,6 +223,26 @@ func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
 	}
 }
 
+func TestNewWithAlphabet_Short(t *testing.T) {
+	abc := "うえ"
+	enc := encoder{newAlphabet(abc)}
+	u1 := uuid.MustParse("bcee4c4f-cee8-4413-8f10-0f68d75c797b")
+	exp := "えうええええううえええうえええううえううええうううえううええええええううえええうえええうえううううえうううえうううううえううえええうううええええうううえううううううううええええうええうえうううええうえうえええうえうえええうううええええううえうええええうええ"
+	u2 := enc.Encode(u1)
+	if u2 != exp {
+		t.Errorf("expected uuid to be %q, got %q", exp, u2)
+		return
+	}
+	u3, err := enc.Decode(u2)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if u1 != u3 {
+		t.Errorf("expected %q, got %q", u1, u3)
+	}
+}
+
 func TestAlphabetCustomLen(t *testing.T) {
 	abc := "21345687654123456"
 	enc := encoder{newAlphabet(abc)}
