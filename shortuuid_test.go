@@ -6,10 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func init() {
-	uuid.EnableRandPool()
-}
-
 var testVector = []struct {
 	uuid      string
 	shortuuid string
@@ -254,10 +250,6 @@ func TestAlphabet_MB(t *testing.T) {
 	if u1 != u3 {
 		t.Errorf("expected %q, got %q", u1, u3)
 	}
-}
-
-func init() {
-	uuid.EnableRandPool()
 }
 
 func BenchmarkUUID(b *testing.B) {
