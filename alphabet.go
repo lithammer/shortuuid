@@ -33,10 +33,7 @@ func newAlphabet(s string) alphabet {
 		chars:    abc,
 		len:      int64(len(abc)),
 		encLen:   uint8(math.Ceil(128 / math.Log2(float64(len(abc))))),
-		maxBytes: 1,
-	}
-	for _, c := range a.chars {
-		a.maxBytes = max(a.maxBytes, uint8(utf8.RuneLen(c)))
+		maxBytes: uint8(utf8.RuneLen(abc[len(abc)-1])),
 	}
 
 	return a
