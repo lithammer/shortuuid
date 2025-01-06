@@ -16,7 +16,7 @@ type alphabet struct {
 	chars    []rune
 	len      int64
 	encLen   int64
-	maxBytes int64
+	maxBytes uint8
 }
 
 // Remove duplicates and sort it to ensure reproducibility.
@@ -36,7 +36,7 @@ func newAlphabet(s string) alphabet {
 		maxBytes: 1,
 	}
 	for _, c := range a.chars {
-		var b int64
+		var b uint8
 		switch i := uint32(c); {
 		case i <= rune1Max:
 			b = 1
