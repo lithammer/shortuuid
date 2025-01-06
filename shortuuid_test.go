@@ -128,19 +128,28 @@ var testVector = []struct {
 	{"f9ee01c3-2015-4716-930e-4d5449810833", "nUfojcH2M5j9j3Tk5A8mf7"},
 }
 
-func TestGeneration(t *testing.T) {
-	tests := []string{
-		"",
-		"http://www.example.com/",
-		"HTTP://www.example.com/",
-		"example.com/",
+func TestNewWithNamespace(t *testing.T) {
+	var tests = []struct {
+		name string
+		uuid string
+	}{
+		{"http://www.example.com/", "nzUQAfy7CW4Dd4kzLguPSV"},
+		{"HTTP://www.example.com/", "N9ZezvXJcoXvKzwiNmGYmH"},
+		{"Https://www.example.com/", "jSz34Z6QzADzy93ywucXMv"},
+		{"example.com/", "kueUMiGUbGccYhpZK8Czat"},
+		{"うえおなにぬねのウエオナニヌネノうえおなにぬねのウエオナニヌネノ", "Mp2Q7GQSRYnoDZyCtGttDg"},
+		{"う", "dTbaUbVKrhNkkZKEwZxLqa"},
+	}
+	for _, test := range tests {
+		u := NewWithNamespace(test.name)
+
+		if u != test.uuid {
+			t.Errorf("expected %q, got %q", test.uuid, u)
+		}
 	}
 
-	for _, test := range tests {
-		u := NewWithNamespace(test)
-		if len(u) < 20 || len(u) > 24 {
-			t.Errorf("expected %q to be in range [20, 24], got %d", u, len(u))
-		}
+	if NewWithNamespace("") == NewWithNamespace("") {
+		t.Errorf("NewWithNamespace should generate random uuid with empty namespace")
 	}
 }
 
