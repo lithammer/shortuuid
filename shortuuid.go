@@ -36,11 +36,11 @@ func NewWithNamespace(name string) string {
 	case name == "":
 		u = uuid.New()
 	case hasPrefixCaseInsensitive(name, "https://"):
-		u = hashedUuid(uuid.NameSpaceURL, name)
+		u = hashedUUID(uuid.NameSpaceURL, name)
 	case hasPrefixCaseInsensitive(name, "http://"):
-		u = hashedUuid(uuid.NameSpaceURL, name)
+		u = hashedUUID(uuid.NameSpaceURL, name)
 	default:
-		u = hashedUuid(uuid.NameSpaceDNS, name)
+		u = hashedUUID(uuid.NameSpaceDNS, name)
 	}
 
 	return DefaultEncoder.Encode(u)
@@ -57,7 +57,7 @@ func hasPrefixCaseInsensitive(s, prefix string) bool {
 	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
 
-func hashedUuid(space uuid.UUID, data string) (u uuid.UUID) {
+func hashedUUID(space uuid.UUID, data string) (u uuid.UUID) {
 	h := sha1.New()
 	h.Write(space[:])                                         //nolint:errcheck
 	h.Write(unsafe.Slice(unsafe.StringData(data), len(data))) //nolint:errcheck

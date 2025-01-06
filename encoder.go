@@ -3,11 +3,12 @@ package shortuuid
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/google/uuid"
 	"math"
 	"math/bits"
 	"unicode/utf8"
 	"unsafe"
+
+	"github.com/google/uuid"
 )
 
 type encoder struct {
@@ -20,24 +21,6 @@ const (
 	defaultEncLen  = 22
 	defaultNDigits = 10
 	defaultDivisor = 362033331456891249 // 57^10
-
-	tx = 0b10000000
-	t2 = 0b11000000
-	t3 = 0b11100000
-	t4 = 0b11110000
-
-	maskx = 0b00111111
-
-	rune1Max = 1<<7 - 1
-	rune2Max = 1<<11 - 1
-	rune3Max = 1<<16 - 1
-
-	surrogateMin = 0xD800
-	surrogateMax = 0xDFFF
-
-	runeErrorByte0 = t3 | (utf8.RuneError >> 12)
-	runeErrorByte1 = tx | (utf8.RuneError>>6)&maskx
-	runeErrorByte2 = tx | utf8.RuneError&maskx
 )
 
 func maxPow(b uint64) (d uint64, n int) {
@@ -82,9 +65,9 @@ func (e encoder) defaultEncode(num uint128) string { // compiler optimizes a lot
 
 func (e encoder) encode(num uint128) string {
 	var r, ind uint64
-	i := e.alphabet.encLen - 1
-	buf := make([]byte, e.alphabet.encLen*int64(e.alphabet.maxBytes))
-	curByteInd := len(buf) - 1
+	i := int(e.alphabet.encLen - 1)
+	buf := make([]byte, int64(e.alphabet.encLen*e.alphabet.maxBytes))
+	lastPlaced := len(buf)
 	l := uint64(e.alphabet.len)
 	d, n := maxPow(l)
 
@@ -92,43 +75,17 @@ func (e encoder) encode(num uint128) string {
 		num, r = num.quoRem64(d)
 		for j := 0; j < n && i >= 0; j++ {
 			r, ind = r/l, r%l
-			curByteInd -= placeRuneEndingAt(buf, e.alphabet.chars[ind], curByteInd)
+			c := e.alphabet.chars[ind]
+			lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
 			i--
 		}
 	}
+	firstRuneLen := utf8.RuneLen(e.alphabet.chars[0])
 	for ; i >= 0; i-- {
-		curByteInd -= placeRuneEndingAt(buf, e.alphabet.chars[0], curByteInd)
+		lastPlaced -= utf8.EncodeRune(buf[lastPlaced-firstRuneLen:], e.alphabet.chars[0])
 	}
-	buf = buf[curByteInd+1:]
+	buf = buf[lastPlaced:]
 	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
-}
-
-func placeRuneEndingAt(p []byte, r rune, ind int) int {
-	switch i := uint32(r); {
-	case i <= rune1Max:
-		p[ind] = byte(r)
-		return 1
-	case i <= rune2Max:
-		p[ind] = tx | byte(r)&maskx
-		p[ind-1] = t2 | byte(r>>6)
-		return 2
-	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
-		p[ind] = tx | byte(r)&maskx
-		p[ind-1] = tx | byte(r>>6)&maskx
-		p[ind-2] = t3 | byte(r>>12)
-		return 3
-	case i > rune3Max && i <= utf8.MaxRune:
-		p[ind] = tx | byte(r)&maskx
-		p[ind-1] = tx | byte(r>>6)&maskx
-		p[ind-2] = tx | byte(r>>12)&maskx
-		p[ind-3] = t4 | byte(r>>18)
-		return 4
-	default:
-		p[ind] = runeErrorByte2
-		p[ind-1] = runeErrorByte1
-		p[ind-2] = runeErrorByte0
-		return 3
-	}
 }
 
 // Decode decodes a string according to the alphabet into a uuid.UUID. If s is

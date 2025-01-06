@@ -15,7 +15,7 @@ const (
 type alphabet struct {
 	chars    []rune
 	len      int64
-	encLen   int64
+	encLen   uint8
 	maxBytes uint8
 }
 
@@ -32,26 +32,11 @@ func newAlphabet(s string) alphabet {
 	a := alphabet{
 		chars:    abc,
 		len:      int64(len(abc)),
-		encLen:   int64(math.Ceil(128 / math.Log2(float64(len(abc))))),
+		encLen:   uint8(math.Ceil(128 / math.Log2(float64(len(abc))))),
 		maxBytes: 1,
 	}
 	for _, c := range a.chars {
-		var b uint8
-		switch i := uint32(c); {
-		case i <= rune1Max:
-			b = 1
-		case i <= rune2Max:
-			b = 2
-		case i < surrogateMin, surrogateMax < i && i <= rune3Max:
-			b = 3
-		case i > rune3Max && i <= utf8.MaxRune:
-			b = 4
-		default:
-			b = 3
-		}
-		if b > a.maxBytes {
-			a.maxBytes = b
-		}
+		a.maxBytes = max(a.maxBytes, uint8(utf8.RuneLen(c)))
 	}
 
 	return a
