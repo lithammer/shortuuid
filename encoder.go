@@ -66,7 +66,7 @@ func (e encoder) defaultEncode(num uint128) string { // compiler optimizes a lot
 func (e encoder) encode(num uint128) string {
 	var r, ind uint64
 	i := int(e.alphabet.encLen - 1)
-	buf := make([]byte, int64(e.alphabet.encLen*e.alphabet.maxBytes))
+	buf := make([]byte, int64(e.alphabet.encLen)*int64(e.alphabet.maxBytes))
 	lastPlaced := len(buf)
 	l := uint64(e.alphabet.len)
 	d, n := maxPow(l)

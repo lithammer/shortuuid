@@ -61,8 +61,7 @@ func hashedUUID(space uuid.UUID, data string) (u uuid.UUID) {
 	h := sha1.New()
 	h.Write(space[:])                                         //nolint:errcheck
 	h.Write(unsafe.Slice(unsafe.StringData(data), len(data))) //nolint:errcheck
-	buf := make([]byte, 0, sha1.Size)
-	s := h.Sum(buf)
+	s := h.Sum(make([]byte, 0, sha1.Size))
 	copy(u[:], s)
 	u[6] = (u[6] & 0x0f) | uint8((5&0xf)<<4)
 	u[8] = (u[8] & 0x3f) | 0x80 // RFC 4122 variant
