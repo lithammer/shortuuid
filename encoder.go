@@ -99,7 +99,8 @@ func (e encoder) encode(num uint128) string {
 	for ; i >= 0; i-- {
 		curByteInd -= placeRuneEndingAt(buf, e.alphabet.chars[0], curByteInd)
 	}
-	return unsafe.String(&buf[curByteInd+1], len(buf)-curByteInd-1)
+	buf = buf[curByteInd+1:]
+	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
 }
 
 func placeRuneEndingAt(p []byte, r rune, ind int) int {
