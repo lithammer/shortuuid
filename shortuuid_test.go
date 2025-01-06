@@ -148,7 +148,9 @@ func TestNewWithNamespace(t *testing.T) {
 		}
 	}
 
-	if NewWithNamespace("") == NewWithNamespace("") {
+	u1 := NewWithNamespace("")
+	u2 := NewWithNamespace("")
+	if u1 == u2 {
 		t.Errorf("NewWithNamespace should generate random uuid with empty namespace")
 	}
 }
