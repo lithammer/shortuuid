@@ -205,7 +205,7 @@ func TestDecodingErrors(t *testing.T) {
 
 func TestNewWithAlphabet(t *testing.T) {
 	abc := DefaultAlphabet[:len(DefaultAlphabet)-1] + "="
-	enc := encoder{newAlphabet(abc)}
+	enc := newEncoder(abc)
 	u1 := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
 	u2 := enc.Encode(u1)
 	if u2 != "iZsai==fWebXd5rLRWFB=u" {
@@ -215,7 +215,7 @@ func TestNewWithAlphabet(t *testing.T) {
 
 func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
 	abc := DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ"
-	enc := encoder{newAlphabet(abc)}
+	enc := newEncoder(abc)
 	u1 := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438374")
 	u2 := enc.Encode(u1)
 	if u2 != "jatbjAAgXfcYe5sMSXGCAお" {
@@ -225,7 +225,7 @@ func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
 
 func TestNewWithAlphabet_Short(t *testing.T) {
 	abc := "うえ"
-	enc := encoder{newAlphabet(abc)}
+	enc := newEncoder(abc)
 	u1 := uuid.MustParse("bcee4c4f-cee8-4413-8f10-0f68d75c797b")
 	exp := "えうええええううえええうえええううえううええうううえううええええええううえええうえええうえううううえうううえうううううえううえええうううええええうううえううううううううええええうええうえうううええうえうえええうえうえええうううええええううえうええええうええ"
 	u2 := enc.Encode(u1)
@@ -245,7 +245,7 @@ func TestNewWithAlphabet_Short(t *testing.T) {
 
 func TestAlphabetCustomLen(t *testing.T) {
 	abc := "21345687654123456"
-	enc := encoder{newAlphabet(abc)}
+	enc := newEncoder(abc)
 	u1 := uuid.MustParse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
 	exp := "1348474176355756628268227744454847411355453"
 	u2 := enc.Encode(u1)
@@ -265,7 +265,7 @@ func TestAlphabetCustomLen(t *testing.T) {
 
 func TestAlphabet_MB(t *testing.T) {
 	abc := "うえおなにぬねのウエオナニヌネノ"
-	enc := encoder{newAlphabet(abc)}
+	enc := newEncoder(abc)
 	u1 := uuid.MustParse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
 	exp := "えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお"
 	u2 := enc.Encode(u1)
@@ -283,6 +283,10 @@ func TestAlphabet_MB(t *testing.T) {
 	}
 }
 
+func init() {
+	uuid.EnableRandPool()
+}
+
 func BenchmarkUUID(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		New()
@@ -298,7 +302,8 @@ func BenchmarkEncoding(b *testing.B) {
 
 func BenchmarkEncodingB57_MB(b *testing.B) {
 	u := uuid.New()
-	enc := encoder{alphabet: newAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghiうえおなにぬねのウエオナニヌネノ")}
+	abc := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghiうえおなにぬねのウエオナニヌネノ"
+	enc := newEncoder(abc)
 	for i := 0; i < b.N; i++ {
 		enc.Encode(u)
 	}
@@ -306,7 +311,8 @@ func BenchmarkEncodingB57_MB(b *testing.B) {
 
 func BenchmarkEncodingB16(b *testing.B) {
 	u := uuid.New()
-	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
+	abc := "0123456789abcdef"
+	enc := newEncoder(abc)
 	for i := 0; i < b.N; i++ {
 		enc.Encode(u)
 	}
@@ -314,7 +320,8 @@ func BenchmarkEncodingB16(b *testing.B) {
 
 func BenchmarkEncodingB16_MB(b *testing.B) {
 	u := uuid.New()
-	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
+	abc := "うえおなにぬねのウエオナニヌネノ"
+	enc := newEncoder(abc)
 	for i := 0; i < b.N; i++ {
 		enc.Encode(u)
 	}
@@ -327,14 +334,16 @@ func BenchmarkDecoding(b *testing.B) {
 }
 
 func BenchmarkDecodingB16(b *testing.B) {
-	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
+	abc := "0123456789abcdef"
+	enc := newEncoder(abc)
 	for i := 0; i < b.N; i++ {
 		_, _ = enc.Decode("b430e18862a84ec58068d03898d94f5f")
 	}
 }
 
 func BenchmarkDecodingB16_MB(b *testing.B) {
-	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
+	abc := "うえおなにぬねのウエオナニヌネノ"
+	enc := newEncoder(abc)
 	for i := 0; i < b.N; i++ {
 		_, _ = enc.Decode("えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお")
 	}

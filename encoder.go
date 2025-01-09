@@ -5,31 +5,48 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"slices"
 	"unicode/utf8"
 	"unsafe"
 
 	"github.com/google/uuid"
 )
 
-type encoder struct {
-	// alphabet is the character set to construct the UUID from.
-	alphabet alphabet
-}
-
 const (
-	defaultBase    = 57
-	defaultEncLen  = 22
-	defaultNDigits = 10
-	defaultDivisor = 362033331456891249 // 57^10
+	DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 )
 
-func maxPow(b uint64) (d uint64, n int) {
-	d, n = b, 1
-	for m := math.MaxUint64 / b; d <= m; {
-		d *= b
-		n++
+type encoder []rune
+
+// Remove duplicates and sort it to ensure reproducibility.
+func newEncoder(alphabet string) encoder {
+	abc := encoder(alphabet)
+	slices.Sort(abc)
+	abc = slices.Compact(abc)
+
+	if len(abc) < 2 {
+		panic("encoding alphabet must be at least two characters")
 	}
-	return
+
+	return abc
+}
+
+// index returns the index of the first instance of t in the alphabet, or an
+// error if t is not present.
+func (e encoder) index(t rune) (uint64, error) {
+	i, j := 0, len(e)
+	for i < j {
+		h := int(uint(i+j) >> 1)
+		if e[h] < t {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	if i >= len(e) || e[i] != t {
+		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
+	}
+	return uint64(i), nil
 }
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
@@ -39,50 +56,74 @@ func (e encoder) Encode(u uuid.UUID) string {
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
-	if e.alphabet.len == defaultBase && e.alphabet.maxBytes == 1 {
-		return e.defaultEncode(num)
+	if unsafe.SliceData(e) == unsafe.SliceData(DefaultEncoder) {
+		return defaultEncode(num)
 	}
 	return e.encode(num)
 }
 
-func (e encoder) defaultEncode(num uint128) string { // compiler optimizes a lot of divisions by constant
-	var i int
+func defaultEncode(num uint128) string {
 	var r uint64
-	var buf [defaultEncLen]byte
-	for i = defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; {
-		num, r = num.quoRem64(defaultDivisor)
-		for j := 0; j < defaultNDigits && i >= 0; j++ {
-			buf[i] = byte(e.alphabet.chars[r%defaultBase])
-			r /= defaultBase
-			i--
-		}
+	var buf [22]byte
+	num, r = num.quoRem64(362033331456891249)
+	buf[21], r = DefaultAlphabet[r%57], r/57
+	buf[20], r = DefaultAlphabet[r%57], r/57
+	buf[19], r = DefaultAlphabet[r%57], r/57
+	buf[18], r = DefaultAlphabet[r%57], r/57
+	buf[17], r = DefaultAlphabet[r%57], r/57
+	buf[16], r = DefaultAlphabet[r%57], r/57
+	buf[15], r = DefaultAlphabet[r%57], r/57
+	buf[14], r = DefaultAlphabet[r%57], r/57
+	buf[13], r = DefaultAlphabet[r%57], r/57
+	buf[12] = DefaultAlphabet[r%57]
+	num, r = num.quoRem64(362033331456891249)
+	buf[11], r = DefaultAlphabet[r%57], r/57
+	buf[10], r = DefaultAlphabet[r%57], r/57
+	buf[9], r = DefaultAlphabet[r%57], r/57
+	buf[8], r = DefaultAlphabet[r%57], r/57
+	buf[7], r = DefaultAlphabet[r%57], r/57
+	buf[6], r = DefaultAlphabet[r%57], r/57
+	buf[5], r = DefaultAlphabet[r%57], r/57
+	buf[4], r = DefaultAlphabet[r%57], r/57
+	buf[3], r = DefaultAlphabet[r%57], r/57
+	buf[2] = DefaultAlphabet[r%57]
+	_, r = num.quoRem64(362033331456891249)
+	buf[1], r = DefaultAlphabet[r%57], r/57
+	buf[0] = DefaultAlphabet[r%57]
+	return unsafe.String(unsafe.SliceData(buf[:]), 22)
+}
+
+func maxPow(b uint64) (d uint64, n int) {
+	d, n = b, 1
+	for m := math.MaxUint64 / b; d <= m; n++ {
+		d *= b
 	}
-	for ; i >= 0; i-- {
-		buf[i] = byte(e.alphabet.chars[0])
-	}
-	return string(buf[:])
+	return
 }
 
 func (e encoder) encode(num uint128) string {
 	var r, ind uint64
-	i := int(e.alphabet.encLen - 1)
-	buf := make([]byte, int64(e.alphabet.encLen)*int64(e.alphabet.maxBytes))
+	encLen := int(math.Ceil(128 / math.Log2(float64(len(e)))))
+	maxBytes := utf8.RuneLen(e[len(e)-1])
+	i := encLen - 1
+	buf := make([]byte, encLen*maxBytes)
 	lastPlaced := len(buf)
-	l := uint64(e.alphabet.len)
+	l := uint64(len(e))
 	d, n := maxPow(l)
 
-	for num.Hi > 0 || num.Lo > 0 {
+	for i >= 0 {
 		num, r = num.quoRem64(d)
 		for j := 0; j < n && i >= 0; j++ {
 			r, ind = r/l, r%l
-			c := e.alphabet.chars[ind]
-			lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
+			c := e[ind]
+			if maxBytes == 1 {
+				buf[i] = byte(c)
+				lastPlaced--
+			} else {
+				lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
+			}
 			i--
 		}
-	}
-	firstRuneLen := utf8.RuneLen(e.alphabet.chars[0])
-	for ; i >= 0; i-- {
-		lastPlaced -= utf8.EncodeRune(buf[lastPlaced-firstRuneLen:], e.alphabet.chars[0])
 	}
 	buf = buf[lastPlaced:]
 	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
@@ -92,14 +133,14 @@ func (e encoder) encode(num uint128) string {
 // too short, its most significant bits (MSB) will be padded with 0 (zero).
 func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 	var n uint128
-	var index int64
-
+	var index uint64
+	l := uint64(len(e))
 	for _, char := range s {
-		index, err = e.alphabet.Index(char)
+		index, err = e.index(char)
 		if err != nil {
 			return
 		}
-		n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
+		n, err = n.mulAdd64(l, index)
 		if err != nil {
 			return
 		}
