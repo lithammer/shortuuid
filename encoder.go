@@ -23,7 +23,7 @@ type BaseNEncoder []rune
 var DefaultEncoder = BaseNEncoder(DefaultAlphabet)
 
 // NewEncoder creates new BaseNEncoder with given alphabet
-// Removes duplicates and sort it to ensure reproducibility.
+// Removes duplicates and sorts it to ensure reproducibility.
 func NewEncoder(alphabet string) (BaseNEncoder, error) {
 	e := BaseNEncoder(alphabet)
 	slices.Sort(e)
