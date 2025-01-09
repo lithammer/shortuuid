@@ -48,7 +48,7 @@ func (e encoder) Encode(u uuid.UUID) string {
 func (e encoder) defaultEncode(num uint128) string { // compiler optimizes a lot of divisions by constant
 	var i int
 	var r uint64
-	buf := make([]byte, defaultEncLen)
+	var buf [defaultEncLen]byte
 	for i = defaultEncLen - 1; num.Hi > 0 || num.Lo > 0; {
 		num, r = num.quoRem64(defaultDivisor)
 		for j := 0; j < defaultNDigits && i >= 0; j++ {
@@ -60,7 +60,7 @@ func (e encoder) defaultEncode(num uint128) string { // compiler optimizes a lot
 	for ; i >= 0; i-- {
 		buf[i] = byte(e.alphabet.chars[0])
 	}
-	return string(buf)
+	return string(buf[:])
 }
 
 func (e encoder) encode(num uint128) string {
