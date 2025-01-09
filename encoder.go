@@ -80,8 +80,8 @@ func defaultEncode(num uint128) string {
 	buf[16], r = DefaultAlphabet[r%57], r/57
 	buf[15], r = DefaultAlphabet[r%57], r/57
 	buf[14], r = DefaultAlphabet[r%57], r/57
-	buf[13], r = DefaultAlphabet[r%57], r/57
-	buf[12] = DefaultAlphabet[r%57]
+	buf[13] = DefaultAlphabet[r%57]
+	buf[12] = DefaultAlphabet[r/57]
 	num, r = num.quoRem64(362033331456891249)
 	buf[11], r = DefaultAlphabet[r%57], r/57
 	buf[10], r = DefaultAlphabet[r%57], r/57
@@ -91,11 +91,11 @@ func defaultEncode(num uint128) string {
 	buf[6], r = DefaultAlphabet[r%57], r/57
 	buf[5], r = DefaultAlphabet[r%57], r/57
 	buf[4], r = DefaultAlphabet[r%57], r/57
-	buf[3], r = DefaultAlphabet[r%57], r/57
-	buf[2] = DefaultAlphabet[r%57]
+	buf[3] = DefaultAlphabet[r%57]
+	buf[2] = DefaultAlphabet[r/57]
 	_, r = num.quoRem64(362033331456891249)
-	buf[1], r = DefaultAlphabet[r%57], r/57
-	buf[0] = DefaultAlphabet[r%57]
+	buf[1] = DefaultAlphabet[r%57]
+	buf[0] = DefaultAlphabet[r/57]
 	return unsafe.String(unsafe.SliceData(buf[:]), 22)
 }
 
