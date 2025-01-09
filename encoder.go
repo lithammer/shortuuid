@@ -25,13 +25,13 @@ var DefaultEncoder = encoder(DefaultAlphabet)
 // NewEncoder creates new encoder with given alphabet
 // Remove duplicates and sort it to ensure reproducibility.
 func NewEncoder(alphabet string) Encoder {
-	abc := encoder(alphabet)
-	slices.Sort(abc)
-	abc = slices.Compact(abc)
-	if len(abc) < 2 {
+	e := encoder(alphabet)
+	slices.Sort(e)
+	e = slices.Compact(e)
+	if len(e) < 2 {
 		panic("encoding alphabet must be at least two characters")
 	}
-	return abc
+	return e
 }
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
