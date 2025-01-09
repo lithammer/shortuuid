@@ -18,35 +18,20 @@ const (
 
 type encoder []rune
 
+// DefaultEncoder is the default encoder uses when generating new UUIDs, and is
+// based on Base57.
+var DefaultEncoder = encoder(DefaultAlphabet)
+
+// NewEncoder creates new encoder with given alphabet
 // Remove duplicates and sort it to ensure reproducibility.
-func newEncoder(alphabet string) encoder {
+func NewEncoder(alphabet string) Encoder {
 	abc := encoder(alphabet)
 	slices.Sort(abc)
 	abc = slices.Compact(abc)
-
 	if len(abc) < 2 {
 		panic("encoding alphabet must be at least two characters")
 	}
-
 	return abc
-}
-
-// index returns the index of the first instance of t in the alphabet, or an
-// error if t is not present.
-func (e encoder) index(t rune) (uint64, error) {
-	i, j := 0, len(e)
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if e[h] < t {
-			i = h + 1
-		} else {
-			j = h
-		}
-	}
-	if i >= len(e) || e[i] != t {
-		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
-	}
-	return uint64(i), nil
 }
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
@@ -60,6 +45,27 @@ func (e encoder) Encode(u uuid.UUID) string {
 		return defaultEncode(num)
 	}
 	return e.encode(num)
+}
+
+// Decode decodes a string according to the alphabet into a uuid.UUID. If s is
+// too short, its most significant bits (MSB) will be padded with 0 (zero).
+func (e encoder) Decode(s string) (u uuid.UUID, err error) {
+	var n uint128
+	var index uint64
+	l := uint64(len(e))
+	for _, char := range s {
+		index, err = e.index(char)
+		if err != nil {
+			return
+		}
+		n, err = n.mulAdd64(l, index)
+		if err != nil {
+			return
+		}
+	}
+	binary.BigEndian.PutUint64(u[:8], n.Hi)
+	binary.BigEndian.PutUint64(u[8:], n.Lo)
+	return
 }
 
 func defaultEncode(num uint128) string {
@@ -129,25 +135,22 @@ func (e encoder) encode(num uint128) string {
 	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
 }
 
-// Decode decodes a string according to the alphabet into a uuid.UUID. If s is
-// too short, its most significant bits (MSB) will be padded with 0 (zero).
-func (e encoder) Decode(s string) (u uuid.UUID, err error) {
-	var n uint128
-	var index uint64
-	l := uint64(len(e))
-	for _, char := range s {
-		index, err = e.index(char)
-		if err != nil {
-			return
-		}
-		n, err = n.mulAdd64(l, index)
-		if err != nil {
-			return
+// index returns the index of the first instance of t in the alphabet, or an
+// error if t is not present.
+func (e encoder) index(t rune) (uint64, error) {
+	i, j := 0, len(e)
+	for i < j {
+		h := int(uint(i+j) >> 1)
+		if e[h] < t {
+			i = h + 1
+		} else {
+			j = h
 		}
 	}
-	binary.BigEndian.PutUint64(u[:8], n.Hi)
-	binary.BigEndian.PutUint64(u[8:], n.Lo)
-	return
+	if i >= len(e) || e[i] != t {
+		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
+	}
+	return uint64(i), nil
 }
 
 type uint128 struct {
