@@ -45,7 +45,10 @@ func NewWithNamespace(name string) string {
 // NewWithAlphabet returns a new UUIDv4, encoded with base57 using the
 // alternative alphabet abc.
 func NewWithAlphabet(abc string) string {
-	enc := NewEncoder(abc)
+	enc, err := NewEncoder(abc)
+	if err != nil {
+		panic(err)
+	}
 	return enc.Encode(uuid.New())
 }
 

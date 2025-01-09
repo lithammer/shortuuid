@@ -16,27 +16,27 @@ const (
 	DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 )
 
-type encoder []rune
+type BaseNEncoder []rune
 
-// DefaultEncoder is the default encoder uses when generating new UUIDs, and is
+// DefaultEncoder is the default BaseNEncoder uses when generating new UUIDs, and is
 // based on Base57.
-var DefaultEncoder = encoder(DefaultAlphabet)
+var DefaultEncoder = BaseNEncoder(DefaultAlphabet)
 
-// NewEncoder creates new encoder with given alphabet
-// Remove duplicates and sort it to ensure reproducibility.
-func NewEncoder(alphabet string) Encoder {
-	e := encoder(alphabet)
+// NewEncoder creates new BaseNEncoder with given alphabet
+// Removes duplicates and sort it to ensure reproducibility.
+func NewEncoder(alphabet string) (BaseNEncoder, error) {
+	e := BaseNEncoder(alphabet)
 	slices.Sort(e)
 	e = slices.Compact(e)
 	if len(e) < 2 {
-		panic("encoding alphabet must be at least two characters")
+		return nil, fmt.Errorf("encoding alphabet must be at least two characters")
 	}
-	return e
+	return e, nil
 }
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
 // first according to the alphabet.
-func (e encoder) Encode(u uuid.UUID) string {
+func (e BaseNEncoder) Encode(u uuid.UUID) string {
 	num := uint128{
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
@@ -49,7 +49,7 @@ func (e encoder) Encode(u uuid.UUID) string {
 
 // Decode decodes a string according to the alphabet into a uuid.UUID. If s is
 // too short, its most significant bits (MSB) will be padded with 0 (zero).
-func (e encoder) Decode(s string) (u uuid.UUID, err error) {
+func (e BaseNEncoder) Decode(s string) (u uuid.UUID, err error) {
 	var n uint128
 	var index uint64
 	l := uint64(len(e))
@@ -107,7 +107,7 @@ func maxPow(b uint64) (d uint64, n int) {
 	return
 }
 
-func (e encoder) encode(num uint128) string {
+func (e BaseNEncoder) encode(num uint128) string {
 	var r, ind uint64
 	encLen := int(math.Ceil(128 / math.Log2(float64(len(e)))))
 	maxBytes := utf8.RuneLen(e[len(e)-1])
@@ -137,7 +137,7 @@ func (e encoder) encode(num uint128) string {
 
 // index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
-func (e encoder) index(t rune) (uint64, error) {
+func (e BaseNEncoder) index(t rune) (uint64, error) {
 	i, j := 0, len(e)
 	for i < j {
 		h := int(uint(i+j) >> 1)
