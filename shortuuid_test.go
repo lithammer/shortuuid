@@ -128,19 +128,30 @@ var testVector = []struct {
 	{"f9ee01c3-2015-4716-930e-4d5449810833", "nUfojcH2M5j9j3Tk5A8mf7"},
 }
 
-func TestGeneration(t *testing.T) {
-	tests := []string{
-		"",
-		"http://www.example.com/",
-		"HTTP://www.example.com/",
-		"example.com/",
+func TestNewWithNamespace(t *testing.T) {
+	var tests = []struct {
+		name string
+		uuid string
+	}{
+		{"http://www.example.com/", "nzUQAfy7CW4Dd4kzLguPSV"},
+		{"HTTP://www.example.com/", "N9ZezvXJcoXvKzwiNmGYmH"},
+		{"Https://www.example.com/", "jSz34Z6QzADzy93ywucXMv"},
+		{"example.com/", "kueUMiGUbGccYhpZK8Czat"},
+		{"うえおなにぬねのウエオナニヌネノうえおなにぬねのウエオナニヌネノ", "Mp2Q7GQSRYnoDZyCtGttDg"},
+		{"う", "dTbaUbVKrhNkkZKEwZxLqa"},
+	}
+	for _, test := range tests {
+		u := NewWithNamespace(test.name)
+
+		if u != test.uuid {
+			t.Errorf("expected %q, got %q", test.uuid, u)
+		}
 	}
 
-	for _, test := range tests {
-		u := NewWithNamespace(test)
-		if len(u) < 20 || len(u) > 24 {
-			t.Errorf("expected %q to be in range [20, 24], got %d", u, len(u))
-		}
+	u1 := NewWithNamespace("")
+	u2 := NewWithNamespace("")
+	if u1 == u2 {
+		t.Errorf("NewWithNamespace should generate random uuid with empty namespace")
 	}
 }
 
@@ -209,6 +220,26 @@ func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
 	u2 := enc.Encode(u1)
 	if u2 != "jatbjAAgXfcYe5sMSXGCAお" {
 		t.Errorf("expected uuid to be %q, got %q", "jatbjAAgXfcYe5sMSXGCAお", u2)
+	}
+}
+
+func TestNewWithAlphabet_Short(t *testing.T) {
+	abc := "うえ"
+	enc := encoder{newAlphabet(abc)}
+	u1 := uuid.MustParse("bcee4c4f-cee8-4413-8f10-0f68d75c797b")
+	exp := "えうええええううえええうえええううえううええうううえううええええええううえええうえええうえううううえうううえうううううえううえええうううええええうううえううううううううええええうええうえうううええうえうえええうえうえええうううええええううえうええええうええ"
+	u2 := enc.Encode(u1)
+	if u2 != exp {
+		t.Errorf("expected uuid to be %q, got %q", exp, u2)
+		return
+	}
+	u3, err := enc.Decode(u2)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if u1 != u3 {
+		t.Errorf("expected %q, got %q", u1, u3)
 	}
 }
 

@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"unicode/utf8"
 )
 
 // DefaultAlphabet is the default alphabet used.
 const (
 	DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-	rune1Max        = 1<<7 - 1
 )
 
 type alphabet struct {
-	chars       []rune
-	len         int64
-	encLen      int64
-	singleBytes bool
+	chars    []rune
+	len      int64
+	encLen   uint8
+	maxBytes uint8
 }
 
 // Remove duplicates and sort it to ensure reproducibility.
@@ -30,16 +30,10 @@ func newAlphabet(s string) alphabet {
 	}
 
 	a := alphabet{
-		chars:       abc,
-		len:         int64(len(abc)),
-		encLen:      int64(math.Ceil(128 / math.Log2(float64(len(abc))))),
-		singleBytes: true,
-	}
-	for _, c := range a.chars {
-		if c > rune1Max {
-			a.singleBytes = false
-			break
-		}
+		chars:    abc,
+		len:      int64(len(abc)),
+		encLen:   uint8(math.Ceil(128 / math.Log2(float64(len(abc))))),
+		maxBytes: uint8(utf8.RuneLen(abc[len(abc)-1])),
 	}
 
 	return a

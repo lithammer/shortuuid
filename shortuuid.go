@@ -1,7 +1,9 @@
 package shortuuid
 
 import (
+	"crypto/sha1"
 	"strings"
+	"unsafe"
 
 	"github.com/google/uuid"
 )
@@ -34,11 +36,11 @@ func NewWithNamespace(name string) string {
 	case name == "":
 		u = uuid.New()
 	case hasPrefixCaseInsensitive(name, "https://"):
-		u = uuid.NewSHA1(uuid.NameSpaceURL, []byte(name))
+		u = hashedUUID(uuid.NameSpaceURL, name)
 	case hasPrefixCaseInsensitive(name, "http://"):
-		u = uuid.NewSHA1(uuid.NameSpaceURL, []byte(name))
+		u = hashedUUID(uuid.NameSpaceURL, name)
 	default:
-		u = uuid.NewSHA1(uuid.NameSpaceDNS, []byte(name))
+		u = hashedUUID(uuid.NameSpaceDNS, name)
 	}
 
 	return DefaultEncoder.Encode(u)
@@ -53,4 +55,15 @@ func NewWithAlphabet(abc string) string {
 
 func hasPrefixCaseInsensitive(s, prefix string) bool {
 	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
+}
+
+func hashedUUID(space uuid.UUID, data string) (u uuid.UUID) {
+	h := sha1.New()
+	h.Write(space[:])                                         //nolint:errcheck
+	h.Write(unsafe.Slice(unsafe.StringData(data), len(data))) //nolint:errcheck
+	s := h.Sum(make([]byte, 0, sha1.Size))
+	copy(u[:], s)
+	u[6] = (u[6] & 0x0f) | uint8((5&0xf)<<4)
+	u[8] = (u[8] & 0x3f) | 0x80 // RFC 4122 variant
+	return u
 }
