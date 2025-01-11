@@ -283,6 +283,79 @@ func TestAlphabet_MB(t *testing.T) {
 	}
 }
 
+func TestNewV7(t *testing.T) {
+	shortUUID := NewV7()
+
+	decodedUUID, err := DefaultEncoder.Decode(shortUUID)
+	if err != nil {
+		t.Fatalf("failed to decode short UUIDv7: %v", err)
+	}
+
+	if decodedUUID.Version() != 7 {
+		t.Errorf("expected UUID version 7, got %d", decodedUUID.Version())
+	}
+
+	if decodedUUID.Variant() != uuid.RFC4122 {
+		t.Errorf("expected RFC4122 variant, got %d", decodedUUID.Variant())
+	}
+}
+
+func TestNewV7WithEncoder(t *testing.T) {
+	customAlphabet := "abcdef0123456789"
+	enc := encoder{newAlphabet(customAlphabet)}
+
+	shortUUID := NewV7WithEncoder(enc)
+
+	decodedUUID, err := enc.Decode(shortUUID)
+	if err != nil {
+		t.Fatalf("failed to decode short UUIDv7 with custom encoder: %v", err)
+	}
+
+	if decodedUUID.Version() != 7 {
+		t.Errorf("expected UUID version 7, got %d", decodedUUID.Version())
+	}
+}
+
+func TestNewV7WithNamespace(t *testing.T) {
+	var tests = []struct {
+		name string
+	}{
+		{"http://www.example.com/"},
+		{"example.com/"},
+		{"https://shortuuid.example/"},
+		{""}, // Empty name for UUIDv7
+	}
+	for _, test := range tests {
+		shortUUID := NewV7WithNamespace(test.name)
+
+		decodedUUID, err := DefaultEncoder.Decode(shortUUID)
+		if err != nil {
+			t.Fatalf("failed to decode short UUIDv7 with namespace %q: %v", test.name, err)
+		}
+
+		if test.name == "" && decodedUUID.Version() != 7 {
+			t.Errorf("expected UUID version 7, got %d for empty namespace", decodedUUID.Version())
+		} else if test.name != "" && decodedUUID.Version() != 5 {
+			t.Errorf("expected UUID version 5, got %d for namespace %q", decodedUUID.Version(), test.name)
+		}
+	}
+}
+
+func TestNewV7WithAlphabet(t *testing.T) {
+	customAlphabet := "abcdefghij12345"
+	shortUUID := NewV7WithAlphabet(customAlphabet)
+
+	enc := encoder{newAlphabet(customAlphabet)}
+	decodedUUID, err := enc.Decode(shortUUID)
+	if err != nil {
+		t.Fatalf("failed to decode short UUIDv7 with custom alphabet: %v", err)
+	}
+
+	if decodedUUID.Version() != 7 {
+		t.Errorf("expected UUID version 7, got %d", decodedUUID.Version())
+	}
+}
+
 func BenchmarkUUID(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		New()
@@ -373,5 +446,23 @@ func BenchmarkNewWithNamespaceHttp(b *testing.B) {
 func BenchmarkNewWithNamespaceHttps(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = NewWithNamespace("https://someaveragelengthurl.test")
+	}
+}
+
+func BenchmarkNewV7(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewV7()
+	}
+}
+
+func BenchmarkNewV7WithAlphabet(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewV7WithAlphabet("abcdefghij12345")
+	}
+}
+
+func BenchmarkNewV7WithNamespace(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewV7WithNamespace("http://example.com/")
 	}
 }
