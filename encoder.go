@@ -5,57 +5,46 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-	"slices"
 	"unicode/utf8"
 	"unsafe"
 
 	"github.com/google/uuid"
 )
 
-const (
-	DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-)
+type encoder struct {
+	// alphabet is the character set to construct the UUID from.
+	alphabet alphabet
+}
 
-// DefaultEncoder is the default BaseNEncoder uses when generating new UUIDs, and is
-// based on Base57.
-var DefaultEncoder = b57Encoder{}
-
-type BaseNEncoder []rune
-
-// NewEncoder creates new BaseNEncoder with given alphabet
-// Removes duplicates and sorts it to ensure reproducibility.
-func NewEncoder(alphabet string) (BaseNEncoder, error) {
-	e := BaseNEncoder(alphabet)
-	slices.Sort(e)
-	e = slices.Compact(e)
-	if len(e) < 2 {
-		return nil, fmt.Errorf("encoding alphabet must be at least two characters")
+func maxPow(b uint64) (d uint64, n int) {
+	d, n = b, 1
+	for m := math.MaxUint64 / b; d <= m; {
+		d *= b
+		n++
 	}
-	return e, nil
+	return
 }
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
 // first according to the alphabet.
-func (e BaseNEncoder) Encode(u uuid.UUID) string {
+func (e encoder) Encode(u uuid.UUID) string {
 	num := uint128{
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
 	var r, ind uint64
-	encLen := int(math.Ceil(128 / math.Log2(float64(len(e)))))
-	maxBytes := utf8.RuneLen(e[len(e)-1])
-	i := encLen - 1
-	buf := make([]byte, encLen*maxBytes)
+	i := int(e.alphabet.encLen - 1)
+	buf := make([]byte, int64(e.alphabet.encLen)*int64(e.alphabet.maxBytes))
 	lastPlaced := len(buf)
-	l := uint64(len(e))
+	l := uint64(e.alphabet.len)
 	d, n := maxPow(l)
 
-	for i >= 0 {
+	for num.Hi > 0 || num.Lo > 0 {
 		num, r = num.quoRem64(d)
 		for j := 0; j < n && i >= 0; j++ {
 			r, ind = r/l, r%l
-			c := e[ind]
-			if maxBytes == 1 {
+			c := e.alphabet.chars[ind]
+			if e.alphabet.maxBytes == 1 {
 				buf[i] = byte(c)
 				lastPlaced--
 			} else {
@@ -64,20 +53,26 @@ func (e BaseNEncoder) Encode(u uuid.UUID) string {
 			i--
 		}
 	}
+	firstRuneLen := utf8.RuneLen(e.alphabet.chars[0])
+	for ; i >= 0; i-- {
+		lastPlaced -= utf8.EncodeRune(buf[lastPlaced-firstRuneLen:], e.alphabet.chars[0])
+	}
 	buf = buf[lastPlaced:]
 	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
 }
 
-func (e BaseNEncoder) Decode(s string) (u uuid.UUID, err error) {
+// Decode decodes a string according to the alphabet into a uuid.UUID. If s is
+// too short, its most significant bits (MSB) will be padded with 0 (zero).
+func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 	var n uint128
-	var index uint64
+	var index int64
 
 	for _, char := range s {
-		index, err = bSearch(e, char)
+		index, err = e.alphabet.Index(char)
 		if err != nil {
 			return
 		}
-		n, err = n.mulAdd64(uint64(len(e)), index)
+		n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
 		if err != nil {
 			return
 		}
@@ -158,32 +153,6 @@ func (e b57Encoder) Decode(s string) (u uuid.UUID, err error) {
 	binary.BigEndian.PutUint64(u[:8], n.Hi)
 	binary.BigEndian.PutUint64(u[8:], n.Lo)
 	return
-}
-
-func maxPow(b uint64) (d uint64, n int) {
-	d, n = b, 1
-	for m := math.MaxUint64 / b; d <= m; n++ {
-		d *= b
-	}
-	return
-}
-
-// bSearch returns the index of the first instance of char in the alphabet, or an
-// error if char is not present.
-func bSearch(alphabet []rune, char rune) (uint64, error) {
-	i, j := 0, len(alphabet)
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if alphabet[h] < char {
-			i = h + 1
-		} else {
-			j = h
-		}
-	}
-	if i >= len(alphabet) || alphabet[i] != char {
-		return 0, fmt.Errorf("element '%v' is not part of the alphabet", char)
-	}
-	return uint64(i), nil
 }
 
 type uint128 struct {

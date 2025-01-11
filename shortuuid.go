@@ -8,6 +8,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// DefaultEncoder is the default encoder uses when generating new UUIDs, and is
+// based on Base57.
+var DefaultEncoder = b57Encoder{}
+
 // Encoder is an interface for encoding/decoding UUIDs to strings.
 type Encoder interface {
 	Encode(uuid.UUID) string
@@ -45,10 +49,7 @@ func NewWithNamespace(name string) string {
 // NewWithAlphabet returns a new UUIDv4, encoded with base57 using the
 // alternative alphabet abc.
 func NewWithAlphabet(abc string) string {
-	enc, err := NewEncoder(abc)
-	if err != nil {
-		panic(err)
-	}
+	enc := encoder{newAlphabet(abc)}
 	return enc.Encode(uuid.New())
 }
 
