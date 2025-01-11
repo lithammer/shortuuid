@@ -71,9 +71,7 @@ func NewV7WithNamespace(name string) string {
 	switch {
 	case name == "":
 		u = uuid.Must(uuid.NewV7())
-	case hasPrefixCaseInsensitive(name, "https://"):
-		u = hashedUUID(uuid.NameSpaceURL, name)
-	case hasPrefixCaseInsensitive(name, "http://"):
+	case hasPrefixCaseInsensitive(name, "https://"), hasPrefixCaseInsensitive(name, "http://"):
 		u = hashedUUID(uuid.NameSpaceURL, name)
 	default:
 		u = hashedUUID(uuid.NameSpaceDNS, name)
