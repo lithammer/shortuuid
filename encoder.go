@@ -125,40 +125,26 @@ func (e b57Encoder) Encode(u uuid.UUID) string {
 
 func (e b57Encoder) Decode(s string) (u uuid.UUID, err error) {
 	var n uint128
-	var n64, ind1, ind2 uint64
+	var n64, ind, i uint64
 
-	for i := 0; i < 10; i++ {
-		if s[i] > 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i])
+	for _, c := range s {
+		if c > 255 {
+			return u, fmt.Errorf("element '%v' is not part of the alphabet", c)
 		}
-		if s[i+10] > 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i+10])
+		ind = uint64(reverseB57[c])
+		if ind == 255 {
+			return u, fmt.Errorf("element '%v' is not part of the alphabet", c)
 		}
-		ind1, ind2 = uint64(reverseB57[s[i]]), uint64(reverseB57[s[i+10]])
-		if ind1 == 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i])
+		n64 = n64*57 + ind
+		i++
+		if i == 10 {
+			n, err = n.mulAdd64(362033331456891249, n64)
+			if err != nil {
+				return
+			}
+			i = 0
+			n64 = 0
 		}
-		if ind2 == 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i+10])
-		}
-		n.Lo = n.Lo*57 + ind1
-		n64 = n64*57 + ind2
-	}
-	n, err = n.mulAdd64(362033331456891249, n64)
-	if err != nil {
-		return
-	}
-
-	n64 = 0
-	for i := 0; i < 2; i++ {
-		if s[i+20] > 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i+20])
-		}
-		ind1 = uint64(reverseB57[s[i+20]])
-		if ind1 == 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i+20])
-		}
-		n64 = n64*57 + ind1
 	}
 	n, err = n.mulAdd64(57*57, n64)
 	if err != nil {
