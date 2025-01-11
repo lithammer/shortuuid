@@ -53,6 +53,42 @@ func NewWithAlphabet(abc string) string {
 	return enc.Encode(uuid.New())
 }
 
+// NewV7 returns a new UUIDv7, encoded with base57.
+// UUIDv7 is time-based and provides monotonicity, making it ideal for certain database indexing scenarios.
+func NewV7() string {
+	return DefaultEncoder.Encode(uuid.Must(uuid.NewV7()))
+}
+
+// NewV7WithEncoder returns a new UUIDv7, encoded with enc.
+func NewV7WithEncoder(enc Encoder) string {
+	return enc.Encode(uuid.Must(uuid.NewV7()))
+}
+
+// NewV7WithNamespace returns a new UUIDv5 (or v7 if name is empty), encoded with base57.
+func NewV7WithNamespace(name string) string {
+	var u uuid.UUID
+
+	switch {
+	case name == "":
+		u = uuid.Must(uuid.NewV7())
+	case hasPrefixCaseInsensitive(name, "https://"):
+		u = hashedUUID(uuid.NameSpaceURL, name)
+	case hasPrefixCaseInsensitive(name, "http://"):
+		u = hashedUUID(uuid.NameSpaceURL, name)
+	default:
+		u = hashedUUID(uuid.NameSpaceDNS, name)
+	}
+
+	return DefaultEncoder.Encode(u)
+}
+
+// NewV7WithAlphabet returns a new UUIDv7, encoded with base57 using the
+// alternative alphabet abc.
+func NewV7WithAlphabet(abc string) string {
+	enc := encoder{newAlphabet(abc)}
+	return enc.Encode(uuid.Must(uuid.NewV7()))
+}
+
 func hasPrefixCaseInsensitive(s, prefix string) bool {
 	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
