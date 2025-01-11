@@ -87,6 +87,11 @@ func (e BaseNEncoder) Decode(s string) (u uuid.UUID, err error) {
 	return
 }
 
+const (
+	b57MaxU64Digits  = 10
+	b57MaxU64Divisor = 362033331456891249 // 57^10
+)
+
 type b57Encoder struct{}
 
 func (e b57Encoder) Encode(u uuid.UUID) string {
@@ -96,7 +101,7 @@ func (e b57Encoder) Encode(u uuid.UUID) string {
 	}
 	var r uint64
 	var buf [22]byte
-	num, r = num.quoRem64(362033331456891249)
+	num, r = num.quoRem64(b57MaxU64Divisor)
 	buf[21], r = DefaultAlphabet[r%57], r/57
 	buf[20], r = DefaultAlphabet[r%57], r/57
 	buf[19], r = DefaultAlphabet[r%57], r/57
@@ -107,7 +112,7 @@ func (e b57Encoder) Encode(u uuid.UUID) string {
 	buf[14], r = DefaultAlphabet[r%57], r/57
 	buf[13] = DefaultAlphabet[r%57]
 	buf[12] = DefaultAlphabet[r/57]
-	num, r = num.quoRem64(362033331456891249)
+	num, r = num.quoRem64(b57MaxU64Divisor)
 	buf[11], r = DefaultAlphabet[r%57], r/57
 	buf[10], r = DefaultAlphabet[r%57], r/57
 	buf[9], r = DefaultAlphabet[r%57], r/57
@@ -137,8 +142,8 @@ func (e b57Encoder) Decode(s string) (u uuid.UUID, err error) {
 		}
 		n64 = n64*57 + ind
 		i++
-		if i == 10 {
-			n, err = n.mulAdd64(362033331456891249, n64)
+		if i == b57MaxU64Digits {
+			n, err = n.mulAdd64(b57MaxU64Divisor, n64)
 			if err != nil {
 				return
 			}
