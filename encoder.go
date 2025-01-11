@@ -16,11 +16,11 @@ const (
 	DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 )
 
-type BaseNEncoder []rune
-
 // DefaultEncoder is the default BaseNEncoder uses when generating new UUIDs, and is
 // based on Base57.
-var DefaultEncoder = BaseNEncoder(DefaultAlphabet)
+var DefaultEncoder = b57Encoder{}
+
+type BaseNEncoder []rune
 
 // NewEncoder creates new BaseNEncoder with given alphabet
 // Removes duplicates and sorts it to ensure reproducibility.
@@ -41,24 +41,43 @@ func (e BaseNEncoder) Encode(u uuid.UUID) string {
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
-	if unsafe.SliceData(e) == unsafe.SliceData(DefaultEncoder) {
-		return defaultEncode(num)
+	var r, ind uint64
+	encLen := int(math.Ceil(128 / math.Log2(float64(len(e)))))
+	maxBytes := utf8.RuneLen(e[len(e)-1])
+	i := encLen - 1
+	buf := make([]byte, encLen*maxBytes)
+	lastPlaced := len(buf)
+	l := uint64(len(e))
+	d, n := maxPow(l)
+
+	for i >= 0 {
+		num, r = num.quoRem64(d)
+		for j := 0; j < n && i >= 0; j++ {
+			r, ind = r/l, r%l
+			c := e[ind]
+			if maxBytes == 1 {
+				buf[i] = byte(c)
+				lastPlaced--
+			} else {
+				lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
+			}
+			i--
+		}
 	}
-	return e.encode(num)
+	buf = buf[lastPlaced:]
+	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
 }
 
-// Decode decodes a string according to the alphabet into a uuid.UUID. If s is
-// too short, its most significant bits (MSB) will be padded with 0 (zero).
 func (e BaseNEncoder) Decode(s string) (u uuid.UUID, err error) {
 	var n uint128
 	var index uint64
-	l := uint64(len(e))
+
 	for _, char := range s {
-		index, err = e.index(char)
+		index, err = bSearch(e, char)
 		if err != nil {
 			return
 		}
-		n, err = n.mulAdd64(l, index)
+		n, err = n.mulAdd64(uint64(len(e)), index)
 		if err != nil {
 			return
 		}
@@ -68,7 +87,13 @@ func (e BaseNEncoder) Decode(s string) (u uuid.UUID, err error) {
 	return
 }
 
-func defaultEncode(num uint128) string {
+type b57Encoder struct{}
+
+func (e b57Encoder) Encode(u uuid.UUID) string {
+	num := uint128{
+		binary.BigEndian.Uint64(u[8:]),
+		binary.BigEndian.Uint64(u[:8]),
+	}
 	var r uint64
 	var buf [22]byte
 	num, r = num.quoRem64(362033331456891249)
@@ -98,6 +123,52 @@ func defaultEncode(num uint128) string {
 	return unsafe.String(unsafe.SliceData(buf[:]), 22)
 }
 
+func (e b57Encoder) Decode(s string) (u uuid.UUID, err error) {
+	var n uint128
+	var n64, ind1, ind2 uint64
+
+	for i := 0; i < 10; i++ {
+		if s[i] > 255 {
+			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i])
+		}
+		if s[i+10] > 255 {
+			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i+10])
+		}
+		ind1, ind2 = uint64(reverseB57[s[i]]), uint64(reverseB57[s[i+10]])
+		if ind1 == 255 {
+			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i])
+		}
+		if ind2 == 255 {
+			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i+10])
+		}
+		n.Lo = n.Lo*57 + ind1
+		n64 = n64*57 + ind2
+	}
+	n, err = n.mulAdd64(362033331456891249, n64)
+	if err != nil {
+		return
+	}
+
+	n64 = 0
+	for i := 0; i < 2; i++ {
+		if s[i+20] > 255 {
+			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i+20])
+		}
+		ind1 = uint64(reverseB57[s[i+20]])
+		if ind1 == 255 {
+			return u, fmt.Errorf("element '%v' is not part of the alphabet", s[i+20])
+		}
+		n64 = n64*57 + ind1
+	}
+	n, err = n.mulAdd64(57*57, n64)
+	if err != nil {
+		return
+	}
+	binary.BigEndian.PutUint64(u[:8], n.Hi)
+	binary.BigEndian.PutUint64(u[8:], n.Lo)
+	return
+}
+
 func maxPow(b uint64) (d uint64, n int) {
 	d, n = b, 1
 	for m := math.MaxUint64 / b; d <= m; n++ {
@@ -106,48 +177,20 @@ func maxPow(b uint64) (d uint64, n int) {
 	return
 }
 
-func (e BaseNEncoder) encode(num uint128) string {
-	var r, ind uint64
-	encLen := int(math.Ceil(128 / math.Log2(float64(len(e)))))
-	maxBytes := utf8.RuneLen(e[len(e)-1])
-	i := encLen - 1
-	buf := make([]byte, encLen*maxBytes)
-	lastPlaced := len(buf)
-	l := uint64(len(e))
-	d, n := maxPow(l)
-
-	for i >= 0 {
-		num, r = num.quoRem64(d)
-		for j := 0; j < n && i >= 0; j++ {
-			r, ind = r/l, r%l
-			c := e[ind]
-			if maxBytes == 1 {
-				buf[i] = byte(c)
-				lastPlaced--
-			} else {
-				lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
-			}
-			i--
-		}
-	}
-	buf = buf[lastPlaced:]
-	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
-}
-
-// index returns the index of the first instance of t in the alphabet, or an
-// error if t is not present.
-func (e BaseNEncoder) index(t rune) (uint64, error) {
-	i, j := 0, len(e)
+// bSearch returns the index of the first instance of char in the alphabet, or an
+// error if char is not present.
+func bSearch(alphabet []rune, char rune) (uint64, error) {
+	i, j := 0, len(alphabet)
 	for i < j {
 		h := int(uint(i+j) >> 1)
-		if e[h] < t {
+		if alphabet[h] < char {
 			i = h + 1
 		} else {
 			j = h
 		}
 	}
-	if i >= len(e) || e[i] != t {
-		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
+	if i >= len(alphabet) || alphabet[i] != char {
+		return 0, fmt.Errorf("element '%v' is not part of the alphabet", char)
 	}
 	return uint64(i), nil
 }
@@ -171,4 +214,39 @@ func (u uint128) mulAdd64(m uint64, a uint64) (uint128, error) {
 		return uint128{}, fmt.Errorf("number is out of range (need a 128-bit value)")
 	}
 	return uint128{lo, hi}, nil
+}
+
+var reverseB57 = [256]byte{
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 0, 1, 2, 3, 4, 5,
+	6, 7, 255, 255, 255, 255, 255, 255,
+	255, 8, 9, 10, 11, 12, 13, 14,
+	15, 255, 16, 17, 18, 19, 20, 255,
+	21, 22, 23, 24, 25, 26, 27, 28,
+	29, 30, 31, 255, 255, 255, 255, 255,
+	255, 32, 33, 34, 35, 36, 37, 38,
+	39, 40, 41, 42, 255, 43, 44, 45,
+	46, 47, 48, 49, 50, 51, 52, 53,
+	54, 55, 56, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
 }
