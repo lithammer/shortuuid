@@ -283,10 +283,6 @@ func TestAlphabet_MB(t *testing.T) {
 	}
 }
 
-func init() {
-	uuid.EnableRandPool()
-}
-
 func BenchmarkUUID(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		New()
@@ -302,8 +298,7 @@ func BenchmarkEncoding(b *testing.B) {
 
 func BenchmarkEncodingB57_MB(b *testing.B) {
 	u := uuid.New()
-	abc := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghiうえおなにぬねのウエオナニヌネノ"
-	enc := encoder{newAlphabet(abc)}
+	enc := encoder{alphabet: newAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghiうえおなにぬねのウエオナニヌネノ")}
 	for i := 0; i < b.N; i++ {
 		enc.Encode(u)
 	}
@@ -311,8 +306,7 @@ func BenchmarkEncodingB57_MB(b *testing.B) {
 
 func BenchmarkEncodingB16(b *testing.B) {
 	u := uuid.New()
-	abc := "0123456789abcdef"
-	enc := encoder{newAlphabet(abc)}
+	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
 	for i := 0; i < b.N; i++ {
 		enc.Encode(u)
 	}
@@ -320,8 +314,7 @@ func BenchmarkEncodingB16(b *testing.B) {
 
 func BenchmarkEncodingB16_MB(b *testing.B) {
 	u := uuid.New()
-	abc := "うえおなにぬねのウエオナニヌネノ"
-	enc := encoder{newAlphabet(abc)}
+	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
 	for i := 0; i < b.N; i++ {
 		enc.Encode(u)
 	}
@@ -334,16 +327,14 @@ func BenchmarkDecoding(b *testing.B) {
 }
 
 func BenchmarkDecodingB16(b *testing.B) {
-	abc := "0123456789abcdef"
-	enc := encoder{newAlphabet(abc)}
+	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
 	for i := 0; i < b.N; i++ {
 		_, _ = enc.Decode("b430e18862a84ec58068d03898d94f5f")
 	}
 }
 
 func BenchmarkDecodingB16_MB(b *testing.B) {
-	abc := "うえおなにぬねのウエオナニヌネノ"
-	enc := encoder{newAlphabet(abc)}
+	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
 	for i := 0; i < b.N; i++ {
 		_, _ = enc.Decode("えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお")
 	}
