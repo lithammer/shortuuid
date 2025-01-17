@@ -10,7 +10,7 @@ import (
 
 // DefaultEncoder is the default encoder uses when generating new UUIDs, and is
 // based on Base57.
-var DefaultEncoder = &encoder{newAlphabet(DefaultAlphabet)}
+var DefaultEncoder = b57Encoder{}
 
 // Encoder is an interface for encoding/decoding UUIDs to strings.
 type Encoder interface {
