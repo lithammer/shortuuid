@@ -26,7 +26,7 @@ jobs:
           GOPROXY: "https://proxy.golang.org"
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v6.5.0
+        uses: golangci/golangci-lint-action@v7.0.0
         with:
           version: v1.62.2
           args: --timeout 3m --verbose
