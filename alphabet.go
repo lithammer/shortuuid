@@ -19,7 +19,12 @@ type alphabet struct {
 	maxBytes uint8
 }
 
-// Remove duplicates and sort it to ensure reproducibility.
+// newAlphabet creates a new alphabet from the given string. Removes
+// duplicates and sorts the characters to ensure reproducibility.
+//
+// Returns an error if the alphabet (after removing duplicates) has fewer than
+// 2 characters. An alphabet must have at least 2 characters to be usable for
+// base-N encoding.
 func newAlphabet(s string) alphabet {
 	abc := []rune(s)
 	slices.Sort(abc)
