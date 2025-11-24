@@ -29,14 +29,12 @@ func newAlphabet(s string) alphabet {
 		panic("encoding alphabet must be at least two characters")
 	}
 
-	a := alphabet{
+	return alphabet{
 		chars:    abc,
 		len:      int64(len(abc)),
 		encLen:   uint8(math.Ceil(128 / math.Log2(float64(len(abc))))),
 		maxBytes: uint8(utf8.RuneLen(abc[len(abc)-1])),
 	}
-
-	return a
 }
 
 func (a *alphabet) Length() int64 {
