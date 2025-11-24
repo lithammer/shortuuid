@@ -209,7 +209,7 @@ func TestNewWithAlphabet(t *testing.T) {
 	u1 := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
 	u2 := enc.Encode(u1)
 	if u2 != "iZsai==fWebXd5rLRWFB=u" {
-		t.Errorf("expected uuid to be %q, got %q", "u=BFWRLr5dXbeWf==iasZi", u2)
+		t.Errorf("expected uuid to be %q, got %q", "iZsai==fWebXd5rLRWFB=u", u2)
 	}
 }
 
