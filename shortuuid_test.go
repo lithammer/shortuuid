@@ -129,7 +129,7 @@ var testVector = []struct {
 }
 
 func TestNewWithNamespace(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name string
 		uuid string
 	}{
