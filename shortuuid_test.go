@@ -1,6 +1,7 @@
 package shortuuid
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -182,23 +183,23 @@ func TestDecoding(t *testing.T) {
 }
 
 func TestDecodingErrors(t *testing.T) {
-	var (
-		NotPartOfAlphabetError  = "not part of alphabet"
-		UUIDLengthOverflowError = "UUID length overflow"
-	)
 	tests := []struct {
-		shortuuid string
-		error     string
+		shortuuid    string
+		errorPattern string
 	}{
-		{"yoANdrf88xUXvwbS5GRbMN", UUIDLengthOverflowError},
-		{"tWkeanmnjjupCMcjnUsfef", UUIDLengthOverflowError},
-		{"1lIO022222222222222222", NotPartOfAlphabetError},
-		{"0a6hrgRGNfQ57QMHZdNYAg", NotPartOfAlphabetError},
+		{"yoANdrf88xUXvwbS5GRbMN", "number is out of range"},
+		{"tWkeanmnjjupCMcjnUsfef", "number is out of range"},
+		{"1lIO022222222222222222", "not part of the alphabet"},
+		{"0a6hrgRGNfQ57QMHZdNYAg", "not part of the alphabet"},
 	}
 	for _, test := range tests {
 		_, err := DefaultEncoder.Decode(test.shortuuid)
 		if err == nil {
-			t.Errorf("expected %q error for %q", test.error, test.shortuuid)
+			t.Errorf("expected error containing %q for %q", test.errorPattern, test.shortuuid)
+			continue
+		}
+		if !strings.Contains(err.Error(), test.errorPattern) {
+			t.Errorf("expected error containing %q for %q, got %q", test.errorPattern, test.shortuuid, err.Error())
 		}
 	}
 }
