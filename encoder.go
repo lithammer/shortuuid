@@ -11,11 +11,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// encoder is a generic encoder that can encode/decode UUIDs using any alphabet.
+// It provides full support for custom alphabets including multibyte UTF-8 characters.
 type encoder struct {
 	// alphabet is the character set to construct the UUID from.
 	alphabet alphabet
 }
 
+// maxPow calculates the maximum power of b that fits in a uint64, returning
+// both the value (d = b^n) and the exponent n. This is used during encoding
+// to process the 128-bit UUID value in chunks that fit in 64-bit arithmetic.
 func maxPow(b uint64) (d uint64, n int) {
 	d, n = b, 1
 	for m := math.MaxUint64 / b; d <= m; {
@@ -87,6 +92,9 @@ const (
 	b57MaxU64Divisor = 362033331456891249 // 57^10
 )
 
+// b57Encoder is an optimized encoder for the default base57 alphabet.
+// It uses a specialized implementation that's faster than the generic encoder
+// for the common case of base57 encoding/decoding.
 type b57Encoder struct{}
 
 func (e b57Encoder) Encode(u uuid.UUID) string {
@@ -155,16 +163,25 @@ func (e b57Encoder) Decode(s string) (u uuid.UUID, err error) {
 	return
 }
 
+// uint128 represents a 128-bit unsigned integer as two 64-bit words.
+// Lo contains the least significant 64 bits, and Hi contains the most
+// significant 64 bits.
 type uint128 struct {
 	Lo, Hi uint64
 }
 
+// quoRem64 divides u by v and returns the quotient q and remainder r.
+// The division is performed using 128-bit arithmetic, handling the
+// high and low 64-bit words separately.
 func (u uint128) quoRem64(v uint64) (q uint128, r uint64) {
 	q.Hi, r = bits.Div64(0, u.Hi, v)
 	q.Lo, r = bits.Div64(r, u.Lo, v)
 	return
 }
 
+// mulAdd64 multiplies u by m and adds a, returning the result.
+// Returns an error if the result would exceed 128 bits.
+// This is used during base-N decoding to accumulate the decoded value.
 func (u uint128) mulAdd64(m uint64, a uint64) (uint128, error) {
 	hi, lo := bits.Mul64(u.Lo, m)
 	p0, p1 := bits.Mul64(u.Hi, m)
@@ -176,6 +193,11 @@ func (u uint128) mulAdd64(m uint64, a uint64) (uint128, error) {
 	return uint128{lo, hi}, nil
 }
 
+// reverseB57 is a lookup table for fast base57 decoding. It maps ASCII byte
+// values (0-255) to their corresponding index in the default alphabet.
+// A value of 255 indicates that the byte is not part of the alphabet.
+// The table is indexed by the byte value directly, allowing O(1) lookup
+// during decoding.
 var reverseB57 = [256]byte{
 	255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255,
