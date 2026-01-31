@@ -1,3 +1,10 @@
+// Package shortuuid provides a library for generating concise, unambiguous,
+// URL-safe UUIDs. It generates UUIDs using github.com/google/uuid and then
+// translates them to base57 using a custom alphabet that removes similar-looking
+// characters (l, 1, I, O, 0).
+//
+// The package is compatible with the Python library shortuuid and provides
+// both a default encoder (base57) and support for custom alphabets and encoders.
 package shortuuid
 
 import (
@@ -8,7 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// DefaultEncoder is the default encoder uses when generating new UUIDs, and is
+// DefaultEncoder is the default encoder used when generating new UUIDs, and is
 // based on Base57.
 var DefaultEncoder = b57Encoder{}
 
