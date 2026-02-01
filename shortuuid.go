@@ -59,9 +59,23 @@ func NewWithNamespace(name string) string {
 // Panics if abc (after removing duplicates) has fewer than 2 characters.
 // The alphabet will be automatically sorted and deduplicated to ensure
 // consistency.
+//
+// For better performance when generating multiple UUIDs with the same alphabet,
+// use NewEncoder to create a reusable encoder instead.
 func NewWithAlphabet(abc string) string {
 	enc := encoder{newAlphabet(abc)}
 	return enc.Encode(uuid.New())
+}
+
+// NewEncoder creates a reusable Encoder from the given alphabet string.
+// This is more efficient than NewWithAlphabet when encoding multiple UUIDs
+// with the same custom alphabet, as the alphabet is only parsed once.
+//
+// Panics if abc (after removing duplicates) has fewer than 2 characters.
+// The alphabet will be automatically sorted and deduplicated to ensure
+// consistency.
+func NewEncoder(abc string) Encoder {
+	return encoder{newAlphabet(abc)}
 }
 
 func hasPrefixCaseInsensitive(s, prefix string) bool {

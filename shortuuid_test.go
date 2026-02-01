@@ -214,6 +214,23 @@ func TestNewWithAlphabet(t *testing.T) {
 	}
 }
 
+func TestNewEncoder(t *testing.T) {
+	abc := DefaultAlphabet[:len(DefaultAlphabet)-1] + "="
+	enc := NewEncoder(abc)
+	u1 := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
+	encoded := enc.Encode(u1)
+	if encoded != "iZsai==fWebXd5rLRWFB=u" {
+		t.Errorf("expected uuid to be %q, got %q", "iZsai==fWebXd5rLRWFB=u", encoded)
+	}
+	decoded, err := enc.Decode(encoded)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if decoded != u1 {
+		t.Errorf("expected %q, got %q", u1, decoded)
+	}
+}
+
 func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
 	abc := DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ"
 	enc := encoder{newAlphabet(abc)}
@@ -356,6 +373,13 @@ func BenchmarkNewWithAlphabetB16(b *testing.B) {
 func BenchmarkNewWithAlphabetB16_MB(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = NewWithAlphabet("うえおなにぬねのウエオナニヌネノ")
+	}
+}
+
+func BenchmarkNewEncoder(b *testing.B) {
+	enc := NewEncoder("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy!")
+	for i := 0; i < b.N; i++ {
+		_ = enc.Encode(uuid.New())
 	}
 }
 

@@ -40,14 +40,32 @@ shortuuid.NewWithNamespace("http://example.com")
 
 It's possible to use a custom alphabet as well (at least 2
 characters long).  
-It will automatically sort and remove duplicates from your alphabet to ensure consistency
+It will automatically sort and remove duplicates from your alphabet to ensure consistency.
 
 ```go
 alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
 shortuuid.NewWithAlphabet(alphabet) // iZsai==fWebXd5rLRWFB=u
 ```
 
-Bring your own encoder! For example, base58 is popular among bitcoin.
+For better performance when generating multiple UUIDs with the same custom
+alphabet, use `NewEncoder` to create a reusable encoder:
+
+```go
+import "github.com/google/uuid"
+
+alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
+enc := shortuuid.NewEncoder(alphabet)
+
+for i := 0; i < 10; i++ {
+    fmt.Println(enc.Encode(uuid.New()))
+}
+
+// Decode also works
+u, err := enc.Decode("iZsai==fWebXd5rLRWFB=u")
+```
+
+Bring your own encoder! For example, base58 is popular among cryptocurrencies
+like Bitcoin.
 
 ```go
 package main
@@ -72,7 +90,17 @@ func (enc base58Encoder) Decode(s string) (uuid.UUID, error) {
 
 func main() {
 	enc := base58Encoder{}
-	fmt.Println(shortuuid.NewWithEncoder(enc)) // 6R7VqaQHbzC1xwA5UueGe6
+
+	// Generate a new short UUID
+	id := shortuuid.NewWithEncoder(enc)
+	fmt.Println(id) // 6R7VqaQHbzC1xwA5UueGe6
+
+	// Decode it back to a uuid.UUID
+	original, err := enc.Decode(id)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(original) // 8ecb52f2-940f-4c2b-88e6-5e7a53bbf541
 }
 ```
 
