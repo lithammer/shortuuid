@@ -26,17 +26,37 @@ import (
 )
 
 func main() {
-	u := shortuuid.New()
+	u := shortuuid.NewV4()
 	fmt.Println(u) // KwSysDpxcBU9FNhGkn2dCf
 }
 ```
 
-To use UUID v5 (instead of the default v4), use `NewWithNamespace(name string)`
-instead of `New()`.
+To use UUID v5 (instead of the default v4), use `NewV5(namespace, name)`:
+
+```go
+shortuuid.NewV5(shortuuid.NameSpaceDNS, "example.com/")
+shortuuid.NewV5(shortuuid.NameSpaceURL, "http://example.com")
+shortuuid.NewV5(shortuuid.NameSpaceOID, "1.2.840.113549")
+shortuuid.NewV5(shortuuid.NameSpaceX500, "CN=example,O=org")
+```
+
+<details>
+<summary>Migrating from NewWithNamespace (deprecated)</summary>
+
+`NewWithNamespace(name)` is deprecated but still available. It uses URL/DNS
+heuristics based on the name prefix, supports `urn:oid:` and `x500:` prefixes,
+and falls back to v4 when the name is empty.
 
 ```go
 shortuuid.NewWithNamespace("http://example.com")
+shortuuid.NewWithNamespace("urn:oid:1.2.840.113549")
+shortuuid.NewWithNamespace("x500:CN=example,O=org")
 ```
+
+See the [NewV5 (FromName) example](https://pkg.go.dev/github.com/lithammer/shortuuid/v4#example-NewV5-FromName)
+for a migration guide.
+
+</details>
 
 It's possible to use a custom alphabet as well (at least 2
 characters long).  
@@ -44,7 +64,13 @@ It will automatically sort and remove duplicates from your alphabet to ensure co
 
 ```go
 alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
-shortuuid.NewWithAlphabet(alphabet) // iZsai==fWebXd5rLRWFB=u
+shortuuid.NewV4WithAlphabet(alphabet) // iZsai==fWebXd5rLRWFB=u
+```
+
+For UUID v5 with a custom alphabet, provide an explicit namespace:
+
+```go
+shortuuid.NewV5WithAlphabet(shortuuid.NameSpaceDNS, "example.com/", alphabet)
 ```
 
 Bring your own encoder! For example, base58 is popular among bitcoin.
@@ -72,7 +98,7 @@ func (enc base58Encoder) Decode(s string) (uuid.UUID, error) {
 
 func main() {
 	enc := base58Encoder{}
-	fmt.Println(shortuuid.NewWithEncoder(enc)) // 6R7VqaQHbzC1xwA5UueGe6
+	fmt.Println(shortuuid.NewV4WithEncoder(enc)) // 6R7VqaQHbzC1xwA5UueGe6
 }
 ```
 
