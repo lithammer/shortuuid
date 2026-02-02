@@ -129,10 +129,36 @@ var testVector = []struct {
 	{"f9ee01c3-2015-4716-930e-4d5449810833", "nUfojcH2M5j9j3Tk5A8mf7"},
 }
 
+func TestNewV5(t *testing.T) {
+	tests := []struct {
+		namespace uuid.UUID
+		name      string
+		expected  string
+	}{
+		{NameSpaceDNS, "example.com/", "kueUMiGUbGccYhpZK8Czat"},
+		{NameSpaceURL, "http://www.example.com/", "nzUQAfy7CW4Dd4kzLguPSV"},
+		{NameSpaceOID, "1.2.840.113549", "HVizdopCKiLaGoTrVJrg9r"},
+		{NameSpaceX500, "CN=example,O=org", "KhUvFAV6shUNnwRqBDuz8i"},
+	}
+
+	for _, test := range tests {
+		if got := NewV5(test.namespace, test.name); got != test.expected {
+			t.Errorf("expected %q, got %q", test.expected, got)
+		}
+	}
+}
+
+func TestNewV5WithAlphabet(t *testing.T) {
+	abc := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
+	if got := NewV5WithAlphabet(NameSpaceDNS, "example.com/", abc); got != "jtdTLhFTaFbbXgoYJ8ByZs" {
+		t.Errorf("expected %q, got %q", "jtdTLhFTaFbbXgoYJ8ByZs", got)
+	}
+}
+
 func TestNewWithNamespace(t *testing.T) {
 	tests := []struct {
-		name string
-		uuid string
+		name     string
+		expected string
 	}{
 		{"http://www.example.com/", "nzUQAfy7CW4Dd4kzLguPSV"},
 		{"HTTP://www.example.com/", "N9ZezvXJcoXvKzwiNmGYmH"},
@@ -140,12 +166,15 @@ func TestNewWithNamespace(t *testing.T) {
 		{"example.com/", "kueUMiGUbGccYhpZK8Czat"},
 		{"うえおなにぬねのウエオナニヌネノうえおなにぬねのウエオナニヌネノ", "Mp2Q7GQSRYnoDZyCtGttDg"},
 		{"う", "dTbaUbVKrhNkkZKEwZxLqa"},
+		{"urn:oid:1.2.840.113549", "HVizdopCKiLaGoTrVJrg9r"},
+		{"URN:OID:1.2.840.113549", "HVizdopCKiLaGoTrVJrg9r"},
+		{"x500:CN=example,O=org", "KhUvFAV6shUNnwRqBDuz8i"},
+		{"X500:CN=example,O=org", "KhUvFAV6shUNnwRqBDuz8i"},
 	}
-	for _, test := range tests {
-		u := NewWithNamespace(test.name)
 
-		if u != test.uuid {
-			t.Errorf("expected %q, got %q", test.uuid, u)
+	for _, test := range tests {
+		if got := NewWithNamespace(test.name); got != test.expected {
+			t.Errorf("expected %q, got %q", test.expected, got)
 		}
 	}
 
@@ -284,9 +313,9 @@ func TestAlphabet_MB(t *testing.T) {
 	}
 }
 
-func BenchmarkUUID(b *testing.B) {
+func BenchmarkNewV4(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		New()
+		NewV4()
 	}
 }
 
@@ -341,38 +370,38 @@ func BenchmarkDecodingB16_MB(b *testing.B) {
 	}
 }
 
-func BenchmarkNewWithAlphabet(b *testing.B) {
+func BenchmarkNewV4WithAlphabet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewWithAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy!")
+		_ = NewV4WithAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy!")
 	}
 }
 
-func BenchmarkNewWithAlphabetB16(b *testing.B) {
+func BenchmarkNewV4WithAlphabetB16(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewWithAlphabet("0123456789abcdef")
+		_ = NewV4WithAlphabet("0123456789abcdef")
 	}
 }
 
-func BenchmarkNewWithAlphabetB16_MB(b *testing.B) {
+func BenchmarkNewV4WithAlphabetB16_MB(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewWithAlphabet("うえおなにぬねのウエオナニヌネノ")
+		_ = NewV4WithAlphabet("うえおなにぬねのウエオナニヌネノ")
 	}
 }
 
-func BenchmarkNewWithNamespace(b *testing.B) {
+func BenchmarkNewV5(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewWithNamespace("someaveragelengthurl")
+		_ = NewV5(NameSpaceDNS, "someaveragelengthurl")
 	}
 }
 
-func BenchmarkNewWithNamespaceHttp(b *testing.B) {
+func BenchmarkNewV5Http(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewWithNamespace("http://someaveragelengthurl.test")
+		_ = NewV5(NameSpaceURL, "http://someaveragelengthurl.test")
 	}
 }
 
-func BenchmarkNewWithNamespaceHttps(b *testing.B) {
+func BenchmarkNewV5Https(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewWithNamespace("https://someaveragelengthurl.test")
+		_ = NewV5(NameSpaceURL, "https://someaveragelengthurl.test")
 	}
 }
