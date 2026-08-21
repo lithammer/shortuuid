@@ -5,6 +5,7 @@ linters:
   default: standard
   enable:
     - copyloopvar
+    - err113
     - errorlint
     - gocritic
     - intrange
