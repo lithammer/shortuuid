@@ -204,6 +204,20 @@ func TestDecodingErrors(t *testing.T) {
 	}
 }
 
+func TestNewV7Sortable(t *testing.T) {
+	// Sortability is the reason to pick v7, and it survives encoding only
+	// because the alphabet is ordered and every encoding is 22 characters
+	// wide. Reordering DefaultAlphabet would break this.
+	prev := ""
+	for range 1000 {
+		got := NewV7()
+		if got <= prev {
+			t.Fatalf("v7 shortuuids must ascend: %q came after %q", got, prev)
+		}
+		prev = got
+	}
+}
+
 func TestUUIDv5(t *testing.T) {
 	// uuid5(NAMESPACE_DNS, "example.com") is a widely published value; a
 	// mismatch means the namespace bytes or the version/variant bits are wrong.

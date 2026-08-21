@@ -61,9 +61,28 @@ func NewEncoder(abc string) Encoder {
 	return encoder{a}
 }
 
-// New returns a new UUIDv4, encoded with base57.
+// New returns a new UUID, encoded with base57.
+//
+// Callers with no need for a particular UUID version should use New. It is
+// currently equivalent to NewV4.
 func New() string {
 	return DefaultEncoder.Encode(uuid.New())
+}
+
+// NewV4 returns a new UUIDv4, encoded with base57. Version 4 UUIDs are 122
+// bits of random data.
+func NewV4() string {
+	return DefaultEncoder.Encode(uuid.NewV4())
+}
+
+// NewV7 returns a new UUIDv7, encoded with base57. Version 7 UUIDs lead with a
+// Unix millisecond timestamp, so they sort in creation order.
+//
+// Encoded shortuuids sort in that order too: the encoding is fixed width, most
+// significant digit first, over an alphabet held in ascending order, so
+// comparing the strings compares the underlying UUIDs.
+func NewV7() string {
+	return DefaultEncoder.Encode(uuid.NewV7())
 }
 
 // NewV5 returns the UUIDv5 of name within namespace, encoded with base57.
