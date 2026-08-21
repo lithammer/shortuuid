@@ -204,6 +204,33 @@ func TestDecodingErrors(t *testing.T) {
 	}
 }
 
+func TestUUIDv5(t *testing.T) {
+	// uuid5(NAMESPACE_DNS, "example.com") is a widely published value; a
+	// mismatch means the namespace bytes or the version/variant bits are wrong.
+	if got := UUIDv5(NameSpaceDNS, "example.com").String(); got != "cfbff0d1-9375-5685-968c-48ce8b15ae17" {
+		t.Errorf("expected %q, got %q", "cfbff0d1-9375-5685-968c-48ce8b15ae17", got)
+	}
+}
+
+func TestNewV5(t *testing.T) {
+	tests := []struct {
+		namespace uuid.UUID
+		name      string
+		expected  string
+	}{
+		{NameSpaceDNS, "example.com/", "kueUMiGUbGccYhpZK8Czat"},
+		{NameSpaceURL, "http://www.example.com/", "nzUQAfy7CW4Dd4kzLguPSV"},
+		{NameSpaceOID, "1.2.840.113549", "HVizdopCKiLaGoTrVJrg9r"},
+		{NameSpaceX500, "CN=example,O=org", "KhUvFAV6shUNnwRqBDuz8i"},
+	}
+
+	for _, test := range tests {
+		if got := NewV5(test.namespace, test.name); got != test.expected {
+			t.Errorf("expected %q, got %q", test.expected, got)
+		}
+	}
+}
+
 func TestNewEncoder(t *testing.T) {
 	// The default alphabet must route to the optimised base57 encoder rather
 	// than the generic one; the two agree on output, so only speed differs.

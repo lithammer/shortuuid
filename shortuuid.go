@@ -19,6 +19,21 @@ import (
 // based on Base57.
 var DefaultEncoder = b57Encoder{}
 
+// Well-known namespace IDs from RFC 9562, Section 6.6.
+var (
+	// NameSpaceDNS is the UUID DNS namespace.
+	NameSpaceDNS = uuid.NameSpaceDNS
+
+	// NameSpaceURL is the UUID URL namespace.
+	NameSpaceURL = uuid.NameSpaceURL
+
+	// NameSpaceOID is the UUID OID namespace.
+	NameSpaceOID = uuid.NameSpaceOID
+
+	// NameSpaceX500 is the UUID X500 namespace.
+	NameSpaceX500 = uuid.NameSpaceX500
+)
+
 // Encoder is an interface for encoding/decoding UUIDs to strings.
 type Encoder interface {
 	Encode(uuid.UUID) string
@@ -51,12 +66,31 @@ func New() string {
 	return DefaultEncoder.Encode(uuid.New())
 }
 
+// NewV5 returns the UUIDv5 of name within namespace, encoded with base57.
+//
+// The namespace is given explicitly, unlike NewWithNamespace which guesses it
+// from the name. Use NewEncoder to encode with a different alphabet:
+//
+//	shortuuid.NewEncoder(abc).Encode(shortuuid.UUIDv5(ns, name))
+func NewV5(namespace uuid.UUID, name string) string {
+	return DefaultEncoder.Encode(UUIDv5(namespace, name))
+}
+
 // NewWithEncoder returns a new UUIDv4, encoded with enc.
 func NewWithEncoder(enc Encoder) string {
 	return enc.Encode(uuid.New())
 }
 
 // NewWithNamespace returns a new UUIDv5 (or v4 if name is empty), encoded with base57.
+//
+// The namespace is guessed from the name: NameSpaceURL for http and https
+// prefixes, matched case-insensitively, and NameSpaceDNS for everything else.
+// This mirrors the Python shortuuid library, so both produce the same ID for
+// the same name. Names that are neither hostnames nor URLs are hashed under
+// NameSpaceDNS too, OIDs and X.500 DNs included; reach those namespaces with
+// NewV5 instead.
+//
+// Deprecated: Use NewV5 with an explicit namespace, or New for a random v4.
 func NewWithNamespace(name string) string {
 	var u uuid.UUID
 
@@ -64,11 +98,11 @@ func NewWithNamespace(name string) string {
 	case name == "":
 		u = uuid.New()
 	case hasPrefixCaseInsensitive(name, "https://"):
-		u = hashedUUID(uuid.NameSpaceURL, name)
+		u = UUIDv5(NameSpaceURL, name)
 	case hasPrefixCaseInsensitive(name, "http://"):
-		u = hashedUUID(uuid.NameSpaceURL, name)
+		u = UUIDv5(NameSpaceURL, name)
 	default:
-		u = hashedUUID(uuid.NameSpaceDNS, name)
+		u = UUIDv5(NameSpaceDNS, name)
 	}
 
 	return DefaultEncoder.Encode(u)
@@ -88,10 +122,15 @@ func hasPrefixCaseInsensitive(s, prefix string) bool {
 	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
 
-func hashedUUID(space uuid.UUID, data string) (u uuid.UUID) {
+// UUIDv5 returns the version 5 (SHA-1, name-based) UUID of name within
+// namespace, as defined in RFC 9562, Section 5.5.
+//
+// Pass the bare name: an OID is "1.2.840.113549", not
+// "urn:oid:1.2.840.113549".
+func UUIDv5(namespace uuid.UUID, name string) (u uuid.UUID) {
 	h := sha1.New()
-	h.Write(space[:])
-	h.Write(unsafe.Slice(unsafe.StringData(data), len(data)))
+	h.Write(namespace[:])
+	h.Write(unsafe.Slice(unsafe.StringData(name), len(name)))
 	s := h.Sum(make([]byte, 0, sha1.Size))
 	copy(u[:], s)
 	u[6] = (u[6] & 0x0f) | uint8((5&0xf)<<4)
