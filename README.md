@@ -31,16 +31,16 @@ func main() {
 }
 ```
 
-`New` returns a v4 (random) UUID and is the right default. Name a version
-explicitly when you need one:
+`New` returns a v4 (random) UUID. Name a version explicitly when you want a
+different one:
 
 ```go
 shortuuid.NewV4() // random, same as New
 shortuuid.NewV7() // time-ordered
 ```
 
-v7 UUIDs lead with a millisecond timestamp, and base57 preserves that order, so
-v7 shortuuids sort lexicographically in creation order.
+v7 UUIDs lead with a millisecond timestamp, and base57 keeps that order, so
+sorting v7 shortuuids as strings sorts them by creation time.
 
 For v5 (derived from a name rather than random) pass a namespace and a name:
 
@@ -60,9 +60,9 @@ u, err := shortuuid.DefaultEncoder.Decode("KwSysDpxcBU9FNhGkn2dCf")
 // 64d1355f-d052-4bd9-83f4-39b93fb1c01f
 ```
 
-A custom alphabet (at least 2 characters long) needs its own encoder. Build it
-once and reuse it — the alphabet is sorted and deduplicated up front, which
-costs more than encoding does:
+A custom alphabet (at least 2 characters long) needs its own encoder. Sorting
+and deduplicating the alphabet happens up front, so build the encoder once and
+reuse it:
 
 ```go
 var enc = shortuuid.NewEncoder("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy=")
@@ -84,66 +84,18 @@ u, err := enc.Decode("dwt3CSai2mbrm9sKcKVrov")
 // cfbff0d1-9375-5685-968c-48ce8b15ae17
 ```
 
-<details>
-<summary>Migrating from v4</summary>
-
-`New` is unchanged, so code calling it only needs its import path bumped to
-`/v5`.
-
-`NewWithEncoder` and `NewWithAlphabet` still work, but are deprecated in favour
-of `NewEncoder`. `NewWithEncoder(enc)` is `enc.Encode(uuid.New())` at the same
-cost, and encoding directly also reaches the other UUID versions.
-`NewWithAlphabet` re-sorts the alphabet on every call and offers no way to avoid
-it, so a reused encoder is roughly 2.5x faster:
-
-```go
-shortuuid.NewWithAlphabet(abc)        // deprecated
-
-var enc = shortuuid.NewEncoder(abc)   // hoisted once
-enc.Encode(uuid.New())
-```
-
-`NewWithNamespace(name)` still works and its IDs are unchanged, but it is
-deprecated. It guesses the namespace from the name — `NameSpaceURL` for
-`http://` and `https://` prefixes, matched case-insensitively, `NameSpaceDNS`
-for everything else — which mirrors the Python `shortuuid` library. Names that
-are neither hostnames nor URLs, OIDs and X.500 DNs included, are hashed under
-`NameSpaceDNS`.
-
-Prefer `NewV5` with the namespace you actually mean:
-
-```go
-shortuuid.NewWithNamespace("http://example.com")                // deprecated
-shortuuid.NewV5(shortuuid.NameSpaceURL, "http://example.com")   // same ID, explicit
-```
-
-To keep the guessing behaviour, it is four lines:
-
-```go
-func fromName(name string) string {
-	lower := strings.ToLower(name)
-	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
-		return shortuuid.NewV5(shortuuid.NameSpaceURL, name)
-	}
-	return shortuuid.NewV5(shortuuid.NameSpaceDNS, name)
-}
-```
-
-shortuuid now requires Go 1.27, and has no dependencies.
-
-</details>
-
-Bring your own encoder! For example, base58 is popular among cryptocurrencies like Bitcoin.
+Bring your own encoder! For example, base58 is popular among cryptocurrencies
+like Bitcoin.
 
 ```go
 package main
 
 import (
 	"fmt"
+	"uuid"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/lithammer/shortuuid/v5"
-	"uuid"
 )
 
 type base58Encoder struct{}
@@ -165,6 +117,54 @@ func main() {
 	fmt.Println(shortuuid.NewWithEncoder(enc)) // 6R7VqaQHbzC1xwA5UueGe6
 }
 ```
+
+<details>
+<summary>Migrating from v4</summary>
+
+`New` is unchanged, so code calling it only needs its import path bumped to
+`/v5`.
+
+`NewWithEncoder` and `NewWithAlphabet` still work, but are deprecated. Use
+`NewEncoder` instead. `NewWithEncoder(enc)` is `enc.Encode(uuid.New())` at the
+same cost, and encoding directly also reaches the other UUID versions.
+`NewWithAlphabet` re-sorts the alphabet on every call with no way to avoid it,
+so a reused encoder is roughly 2.5x faster:
+
+```go
+shortuuid.NewWithAlphabet(abc)        // deprecated
+
+var enc = shortuuid.NewEncoder(abc)   // hoisted once
+enc.Encode(uuid.New())
+```
+
+`NewWithNamespace(name)` still works and its IDs are unchanged, but it is
+deprecated. It guesses the namespace from the name: `NameSpaceURL` for
+`http://` and `https://` prefixes, matched case-insensitively, and
+`NameSpaceDNS` for everything else, which is what the Python `shortuuid`
+library does. An OID or an X.500 DN hashes under `NameSpaceDNS` too.
+
+Prefer `NewV5` with the namespace you mean:
+
+```go
+shortuuid.NewWithNamespace("http://example.com")                // deprecated
+shortuuid.NewV5(shortuuid.NameSpaceURL, "http://example.com")   // same ID, explicit
+```
+
+Reproducing the guess takes a small helper:
+
+```go
+func fromName(name string) string {
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		return shortuuid.NewV5(shortuuid.NameSpaceURL, name)
+	}
+	return shortuuid.NewV5(shortuuid.NameSpaceDNS, name)
+}
+```
+
+v5 requires Go 1.27 and has no dependencies.
+
+</details>
 
 ## License
 
