@@ -352,14 +352,14 @@ func TestAlphabet_MB(t *testing.T) {
 }
 
 func BenchmarkUUID(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		New()
 	}
 }
 
 func BenchmarkEncoding(b *testing.B) {
 	u := uuid.New()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		DefaultEncoder.Encode(u)
 	}
 }
@@ -367,7 +367,7 @@ func BenchmarkEncoding(b *testing.B) {
 func BenchmarkEncodingB57_MB(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghiうえおなにぬねのウエオナニヌネノ")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		enc.Encode(u)
 	}
 }
@@ -375,7 +375,7 @@ func BenchmarkEncodingB57_MB(b *testing.B) {
 func BenchmarkEncodingB16(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		enc.Encode(u)
 	}
 }
@@ -383,63 +383,63 @@ func BenchmarkEncodingB16(b *testing.B) {
 func BenchmarkEncodingB16_MB(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		enc.Encode(u)
 	}
 }
 
 func BenchmarkDecoding(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = DefaultEncoder.Decode("nUfojcH2M5j9j3Tk5A8mf7")
 	}
 }
 
 func BenchmarkDecodingB16(b *testing.B) {
 	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = enc.Decode("b430e18862a84ec58068d03898d94f5f")
 	}
 }
 
 func BenchmarkDecodingB16_MB(b *testing.B) {
 	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = enc.Decode("えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお")
 	}
 }
 
 func BenchmarkNewWithAlphabet(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy!")
 	}
 }
 
 func BenchmarkNewWithAlphabetB16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithAlphabet("0123456789abcdef")
 	}
 }
 
 func BenchmarkNewWithAlphabetB16_MB(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithAlphabet("うえおなにぬねのウエオナニヌネノ")
 	}
 }
 
 func BenchmarkNewWithNamespace(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithNamespace("someaveragelengthurl")
 	}
 }
 
 func BenchmarkNewWithNamespaceHttp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithNamespace("http://someaveragelengthurl.test")
 	}
 }
 
 func BenchmarkNewWithNamespaceHttps(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithNamespace("https://someaveragelengthurl.test")
 	}
 }
