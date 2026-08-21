@@ -124,9 +124,9 @@ func NewWithNamespace(name string) string {
 	switch {
 	case name == "":
 		u = uuid.New()
-	case hasPrefixCaseInsensitive(name, "https://"):
+	case hasPrefixFold(name, "https://"):
 		u = UUIDv5(NameSpaceURL, name)
-	case hasPrefixCaseInsensitive(name, "http://"):
+	case hasPrefixFold(name, "http://"):
 		u = UUIDv5(NameSpaceURL, name)
 	default:
 		u = UUIDv5(NameSpaceDNS, name)
@@ -151,6 +151,6 @@ func NewWithAlphabet(abc string) string {
 	return NewEncoder(abc).Encode(uuid.New())
 }
 
-func hasPrefixCaseInsensitive(s, prefix string) bool {
+func hasPrefixFold(s, prefix string) bool {
 	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
