@@ -2,6 +2,7 @@ package shortuuid
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"math/bits"
@@ -187,7 +188,7 @@ func (u uint128) mulAdd64(m uint64, a uint64) (uint128, error) {
 	lo, c0 := bits.Add64(lo, a, 0)
 	hi, c1 := bits.Add64(hi, p1, c0)
 	if p0 != 0 || c1 != 0 {
-		return uint128{}, fmt.Errorf("number is out of range (need a 128-bit value)")
+		return uint128{}, errors.New("number is out of range (need a 128-bit value)")
 	}
 	return uint128{lo, hi}, nil
 }
