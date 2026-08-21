@@ -410,6 +410,14 @@ func BenchmarkNewWithAlphabet(b *testing.B) {
 	}
 }
 
+// The alphabet is built once here, where NewWithAlphabet rebuilds it per call.
+func BenchmarkNewEncoder(b *testing.B) {
+	enc := NewEncoder("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy!")
+	for b.Loop() {
+		_ = enc.Encode(uuid.New())
+	}
+}
+
 func BenchmarkNewWithAlphabetB16(b *testing.B) {
 	for b.Loop() {
 		_ = NewWithAlphabet("0123456789abcdef")
