@@ -87,6 +87,9 @@ func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 	return
 }
 
+// errOutOfRange reports a decoded value too large for the 128 bits a UUID has.
+var errOutOfRange = errors.New("number is out of range (need a 128-bit value)")
+
 const (
 	b57MaxU64Digits  = 10
 	b57MaxU64Divisor = 362033331456891249 // 57^10
@@ -137,11 +140,11 @@ func (e b57Encoder) Decode(s string) (u uuid.UUID, err error) {
 
 	for _, c := range s {
 		if c > 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", c)
+			return u, fmt.Errorf("%w: %q", errNotInAlphabet, c)
 		}
 		ind = uint64(reverseB57[c])
 		if ind == 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", c)
+			return u, fmt.Errorf("%w: %q", errNotInAlphabet, c)
 		}
 		n64 = n64*57 + ind
 		i++
@@ -188,7 +191,7 @@ func (u uint128) mulAdd64(m uint64, a uint64) (uint128, error) {
 	lo, c0 := bits.Add64(lo, a, 0)
 	hi, c1 := bits.Add64(hi, p1, c0)
 	if p0 != 0 || c1 != 0 {
-		return uint128{}, errors.New("number is out of range (need a 128-bit value)")
+		return uint128{}, errOutOfRange
 	}
 	return uint128{lo, hi}, nil
 }

@@ -1,11 +1,15 @@
 package shortuuid
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"slices"
 	"unicode/utf8"
 )
+
+// errNotInAlphabet is wrapped with the offending character by the decoders.
+var errNotInAlphabet = errors.New("character is not part of the alphabet")
 
 // DefaultAlphabet is the default alphabet used for base57 encoding.
 // It excludes similar-looking characters (0, 1, I, O, l) to avoid confusion.
@@ -63,7 +67,7 @@ func (a *alphabet) Index(t rune) (int64, error) {
 		}
 	}
 	if i >= int(a.len) || a.chars[i] != t {
-		return 0, fmt.Errorf("element '%v' is not part of the alphabet", t)
+		return 0, fmt.Errorf("%w: %q", errNotInAlphabet, t)
 	}
 	return int64(i), nil
 }
