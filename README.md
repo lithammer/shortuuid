@@ -31,12 +31,27 @@ func main() {
 }
 ```
 
-To use UUID v5 (instead of the default v4), use `NewWithNamespace(name string)`
-instead of `New()`.
+`New` returns a v4 (random) UUID and is the right default. Name a version
+explicitly when you need one:
 
 ```go
-shortuuid.NewWithNamespace("http://example.com")
+shortuuid.NewV4() // random, same as New
+shortuuid.NewV7() // time-ordered
 ```
+
+v7 UUIDs lead with a millisecond timestamp, and base57 preserves that order, so
+v7 shortuuids sort lexicographically in creation order.
+
+For v5 (derived from a name rather than random) pass a namespace and a name:
+
+```go
+shortuuid.NewV5(shortuuid.NameSpaceDNS, "example.com")          // exu3DTbj2ncsn9tLdLWspw
+shortuuid.NewV5(shortuuid.NameSpaceURL, "http://example.com")   // T35fvrnVz6SMSdh9y5hs8c
+shortuuid.NewV5(shortuuid.NameSpaceOID, "1.2.840.113549")       // HVizdopCKiLaGoTrVJrg9r
+shortuuid.NewV5(shortuuid.NameSpaceX500, "CN=example,O=org")
+```
+
+Pass the bare name — an OID is `"1.2.840.113549"`, not `"urn:oid:1.2.840.113549"`.
 
 It's possible to use a custom alphabet as well (at least 2
 characters long).  
@@ -46,6 +61,52 @@ It will automatically sort and remove duplicates from your alphabet to ensure co
 alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
 shortuuid.NewWithAlphabet(alphabet) // iZsai==fWebXd5rLRWFB=u
 ```
+
+To pair a custom alphabet with a specific UUID version, build the encoder once
+and hand it whichever UUID you want:
+
+```go
+enc := shortuuid.NewEncoder(alphabet)
+
+enc.Encode(uuid.NewV7())
+enc.Encode(shortuuid.UUIDv5(shortuuid.NameSpaceDNS, "example.com")) // dwt3CSai2mbrm9sKcKVrov
+```
+
+<details>
+<summary>Migrating from v4</summary>
+
+`New`, `NewWithEncoder` and `NewWithAlphabet` are unchanged, so most code only
+needs its import path bumped to `/v5`.
+
+`NewWithNamespace(name)` still works and its IDs are unchanged, but it is
+deprecated. It guesses the namespace from the name — `NameSpaceURL` for
+`http://` and `https://` prefixes, matched case-insensitively, `NameSpaceDNS`
+for everything else — which mirrors the Python `shortuuid` library. Names that
+are neither hostnames nor URLs, OIDs and X.500 DNs included, are hashed under
+`NameSpaceDNS`.
+
+Prefer `NewV5` with the namespace you actually mean:
+
+```go
+shortuuid.NewWithNamespace("http://example.com")                // deprecated
+shortuuid.NewV5(shortuuid.NameSpaceURL, "http://example.com")   // same ID, explicit
+```
+
+To keep the guessing behaviour, it is four lines:
+
+```go
+func fromName(name string) string {
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		return shortuuid.NewV5(shortuuid.NameSpaceURL, name)
+	}
+	return shortuuid.NewV5(shortuuid.NameSpaceDNS, name)
+}
+```
+
+shortuuid now requires Go 1.27, and has no dependencies.
+
+</details>
 
 Bring your own encoder! For example, base58 is popular among bitcoin.
 
