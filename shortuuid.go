@@ -25,6 +25,27 @@ type Encoder interface {
 	Decode(string) (uuid.UUID, error)
 }
 
+// NewEncoder returns an Encoder over the alphabet abc. The alphabet is sorted
+// and deduplicated first, so any permutation of the same characters yields the
+// same encoding.
+//
+// Combined with a UUID of the caller's choosing, this covers every
+// version/alphabet pairing without a constructor for each one:
+//
+//	enc := shortuuid.NewEncoder(abc)
+//	enc.Encode(uuid.New())
+//	enc.Encode(uuid.NewV7())
+//	enc.Encode(shortuuid.UUIDv5(shortuuid.NameSpaceDNS, "example.com"))
+//
+// Panics if abc (after removing duplicates) has fewer than 2 characters.
+func NewEncoder(abc string) Encoder {
+	a := newAlphabet(abc)
+	if string(a.chars) == DefaultAlphabet {
+		return DefaultEncoder
+	}
+	return encoder{a}
+}
+
 // New returns a new UUIDv4, encoded with base57.
 func New() string {
 	return DefaultEncoder.Encode(uuid.New())
@@ -60,8 +81,7 @@ func NewWithNamespace(name string) string {
 // The alphabet will be automatically sorted and deduplicated to ensure
 // consistency.
 func NewWithAlphabet(abc string) string {
-	enc := encoder{newAlphabet(abc)}
-	return enc.Encode(uuid.New())
+	return NewWithEncoder(NewEncoder(abc))
 }
 
 func hasPrefixCaseInsensitive(s, prefix string) bool {

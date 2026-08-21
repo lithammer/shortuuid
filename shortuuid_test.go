@@ -204,6 +204,35 @@ func TestDecodingErrors(t *testing.T) {
 	}
 }
 
+func TestNewEncoder(t *testing.T) {
+	// The default alphabet must route to the optimised base57 encoder rather
+	// than the generic one; the two agree on output, so only speed differs.
+	if enc := NewEncoder(DefaultAlphabet); enc != Encoder(DefaultEncoder) {
+		t.Errorf("NewEncoder(DefaultAlphabet) = %T, want %T", enc, DefaultEncoder)
+	}
+
+	// Sorting and deduplication mean permutations collapse to one encoder.
+	u := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
+	abc := "0123456789abcdef"
+	want := NewEncoder(abc).Encode(u)
+	for _, variant := range []string{"fedcba9876543210", "0123456789abcdefabcdef"} {
+		if got := NewEncoder(variant).Encode(u); got != want {
+			t.Errorf("NewEncoder(%q) encoded %q, want %q", variant, got, want)
+		}
+	}
+
+	for _, abc := range []string{"", "a", "aaa"} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("NewEncoder(%q) should panic: fewer than 2 distinct characters", abc)
+				}
+			}()
+			NewEncoder(abc)
+		}()
+	}
+}
+
 func TestNewWithAlphabet(t *testing.T) {
 	abc := DefaultAlphabet[:len(DefaultAlphabet)-1] + "="
 	enc := encoder{newAlphabet(abc)}
