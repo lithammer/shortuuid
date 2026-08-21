@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  # standard is golangci-lint's own default set. misspell is cheap, and this
+  # package carries a lot of prose.
+  default: standard
+  enable:
+    - misspell
+
+formatters:
+  # Formatting is not checked by default, so drift reaches master unnoticed.
+  enable:
+    - gofmt
