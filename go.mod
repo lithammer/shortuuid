@@ -1,4 +1,4 @@
-module github.com/lithammer/shortuuid/v4
+module github.com/lithammer/shortuuid/v5
 
 require github.com/google/uuid v1.6.0
 
