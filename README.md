@@ -133,7 +133,7 @@ shortuuid now requires Go 1.27, and has no dependencies.
 
 </details>
 
-Bring your own encoder! For example, base58 is popular among bitcoin.
+Bring your own encoder! For example, base58 is popular among cryptocurrencies like Bitcoin.
 
 ```go
 package main
