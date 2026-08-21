@@ -3,7 +3,6 @@ package shortuuid
 import (
 	"strings"
 	"testing"
-
 	"uuid"
 )
 
