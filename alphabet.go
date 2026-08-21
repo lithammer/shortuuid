@@ -17,10 +17,10 @@ const (
 // sorted, deduplicated characters along with precomputed values for efficient
 // encoding and decoding.
 type alphabet struct {
-	chars    []rune  // sorted, deduplicated characters
-	len      int64   // number of characters in the alphabet
-	encLen   uint8   // maximum encoded length for a 128-bit value
-	maxBytes uint8   // maximum UTF-8 bytes needed for any character
+	chars    []rune // sorted, deduplicated characters
+	len      int64  // number of characters in the alphabet
+	encLen   uint8  // maximum encoded length for a 128-bit value
+	maxBytes uint8  // maximum UTF-8 bytes needed for any character
 }
 
 // newAlphabet creates a new alphabet from the given string. Removes
