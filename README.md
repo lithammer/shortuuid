@@ -53,21 +53,19 @@ shortuuid.NewV5(shortuuid.NameSpaceX500, "CN=example,O=org")
 
 Pass the bare name — an OID is `"1.2.840.113549"`, not `"urn:oid:1.2.840.113549"`.
 
-It's possible to use a custom alphabet as well (at least 2
-characters long).  
-It will automatically sort and remove duplicates from your alphabet to ensure consistency
+A custom alphabet (at least 2 characters long) needs its own encoder. Build it
+once and reuse it — the alphabet is sorted and deduplicated up front, which
+costs more than encoding does:
 
 ```go
-alphabet := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy="
-shortuuid.NewWithAlphabet(alphabet) // iZsai==fWebXd5rLRWFB=u
+var enc = shortuuid.NewEncoder("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy=")
+
+enc.Encode(uuid.New())   // iZsai==fWebXd5rLRWFB=u
 ```
 
-To pair a custom alphabet with a specific UUID version, build the encoder once
-and hand it whichever UUID you want:
+The encoder takes any UUID, so one encoder covers every version:
 
 ```go
-enc := shortuuid.NewEncoder(alphabet)
-
 enc.Encode(uuid.NewV7())
 enc.Encode(shortuuid.UUIDv5(shortuuid.NameSpaceDNS, "example.com")) // dwt3CSai2mbrm9sKcKVrov
 ```
@@ -75,8 +73,21 @@ enc.Encode(shortuuid.UUIDv5(shortuuid.NameSpaceDNS, "example.com")) // dwt3CSai2
 <details>
 <summary>Migrating from v4</summary>
 
-`New`, `NewWithEncoder` and `NewWithAlphabet` are unchanged, so most code only
-needs its import path bumped to `/v5`.
+`New` is unchanged, so code calling it only needs its import path bumped to
+`/v5`.
+
+`NewWithEncoder` and `NewWithAlphabet` still work, but are deprecated in favour
+of `NewEncoder`. `NewWithEncoder(enc)` is `enc.Encode(uuid.New())` at the same
+cost, and encoding directly also reaches the other UUID versions.
+`NewWithAlphabet` re-sorts the alphabet on every call and offers no way to avoid
+it, so a reused encoder is roughly 2.5x faster:
+
+```go
+shortuuid.NewWithAlphabet(abc)        // deprecated
+
+var enc = shortuuid.NewEncoder(abc)   // hoisted once
+enc.Encode(uuid.New())
+```
 
 `NewWithNamespace(name)` still works and its IDs are unchanged, but it is
 deprecated. It guesses the namespace from the name — `NameSpaceURL` for

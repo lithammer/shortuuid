@@ -96,6 +96,12 @@ func NewV5(namespace uuid.UUID, name string) string {
 }
 
 // NewWithEncoder returns a new UUIDv4, encoded with enc.
+//
+// Deprecated: Call enc.Encode directly. It costs the same, and it encodes
+// versions other than v4:
+//
+//	enc.Encode(uuid.New())
+//	enc.Encode(uuid.NewV7())
 func NewWithEncoder(enc Encoder) string {
 	return enc.Encode(uuid.New())
 }
@@ -133,8 +139,15 @@ func NewWithNamespace(name string) string {
 // Panics if abc (after removing duplicates) has fewer than 2 characters.
 // The alphabet will be automatically sorted and deduplicated to ensure
 // consistency.
+//
+// Deprecated: Sorting and deduplicating abc costs more than the encoding
+// itself, and this pays it on every call with no way to hoist it out. Build the
+// encoder once with NewEncoder and reuse it:
+//
+//	var enc = shortuuid.NewEncoder(abc)
+//	enc.Encode(uuid.New())
 func NewWithAlphabet(abc string) string {
-	return NewWithEncoder(NewEncoder(abc))
+	return NewEncoder(abc).Encode(uuid.New())
 }
 
 func hasPrefixCaseInsensitive(s, prefix string) bool {
