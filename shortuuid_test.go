@@ -205,9 +205,8 @@ func TestDecodingErrors(t *testing.T) {
 }
 
 func TestNewV7Sortable(t *testing.T) {
-	// Sortability is the reason to pick v7, and it survives encoding only
-	// because the alphabet is ordered and every encoding is 22 characters
-	// wide. Reordering DefaultAlphabet would break this.
+	// Sort order survives encoding only because DefaultAlphabet is sorted and
+	// every encoding is 22 characters wide. Reordering it would break this.
 	prev := ""
 	for range 1000 {
 		got := NewV7()
@@ -219,8 +218,8 @@ func TestNewV7Sortable(t *testing.T) {
 }
 
 func TestUUIDv5(t *testing.T) {
-	// uuid5(NAMESPACE_DNS, "example.com") is a widely published value; a
-	// mismatch means the namespace bytes or the version/variant bits are wrong.
+	// A widely published value, so a mismatch points at the namespace bytes or
+	// the version and variant bits rather than at the expectation.
 	if got := UUIDv5(NameSpaceDNS, "example.com").String(); got != "cfbff0d1-9375-5685-968c-48ce8b15ae17" {
 		t.Errorf("expected %q, got %q", "cfbff0d1-9375-5685-968c-48ce8b15ae17", got)
 	}
@@ -252,10 +251,9 @@ func TestNewEncoder(t *testing.T) {
 		t.Errorf("NewEncoder(DefaultAlphabet) = %T, want %T", enc, DefaultEncoder)
 	}
 
-	// Sorting and deduplication mean permutations collapse to one encoder.
+	// Reordering the characters, or repeating them, must give the same encoder.
 	u := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
-	abc := "0123456789abcdef"
-	want := NewEncoder(abc).Encode(u)
+	want := NewEncoder("0123456789abcdef").Encode(u)
 	for _, variant := range []string{"fedcba9876543210", "0123456789abcdefabcdef"} {
 		if got := NewEncoder(variant).Encode(u); got != want {
 			t.Errorf("NewEncoder(%q) encoded %q, want %q", variant, got, want)

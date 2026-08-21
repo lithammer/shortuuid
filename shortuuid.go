@@ -19,18 +19,11 @@ import (
 var DefaultEncoder = b57Encoder{}
 
 // Well-known namespace IDs from RFC 9562, Section 6.6. The standard library
-// uuid package does not export these, so they are spelled out here.
+// uuid package does not export these.
 var (
-	// NameSpaceDNS is the UUID DNS namespace.
-	NameSpaceDNS = uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-
-	// NameSpaceURL is the UUID URL namespace.
-	NameSpaceURL = uuid.MustParse("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
-
-	// NameSpaceOID is the UUID OID namespace.
-	NameSpaceOID = uuid.MustParse("6ba7b812-9dad-11d1-80b4-00c04fd430c8")
-
-	// NameSpaceX500 is the UUID X500 namespace.
+	NameSpaceDNS  = uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+	NameSpaceURL  = uuid.MustParse("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
+	NameSpaceOID  = uuid.MustParse("6ba7b812-9dad-11d1-80b4-00c04fd430c8")
 	NameSpaceX500 = uuid.MustParse("6ba7b814-9dad-11d1-80b4-00c04fd430c8")
 )
 
@@ -40,15 +33,11 @@ type Encoder interface {
 	Decode(string) (uuid.UUID, error)
 }
 
-// NewEncoder returns an Encoder over the alphabet abc. The alphabet is sorted
-// and deduplicated first, so any permutation of the same characters yields the
-// same encoding.
+// NewEncoder returns an Encoder over the alphabet abc, which it sorts and
+// deduplicates first, so the same characters in any order encode alike.
 //
-// Combined with a UUID of the caller's choosing, this covers every
-// version/alphabet pairing without a constructor for each one:
+// Build one encoder and reuse it; it encodes a UUID of any version:
 //
-//	enc := shortuuid.NewEncoder(abc)
-//	enc.Encode(uuid.New())
 //	enc.Encode(uuid.NewV7())
 //	enc.Encode(shortuuid.UUIDv5(shortuuid.NameSpaceDNS, "example.com"))
 //
@@ -78,9 +67,8 @@ func NewV4() string {
 // NewV7 returns a new UUIDv7, encoded with base57. Version 7 UUIDs lead with a
 // Unix millisecond timestamp, so they sort in creation order.
 //
-// Encoded shortuuids sort in that order too: the encoding is fixed width, most
-// significant digit first, over an alphabet held in ascending order, so
-// comparing the strings compares the underlying UUIDs.
+// The encoded strings sort in that order too, because every encoding is 22
+// characters of most-significant-digit-first base57 over a sorted alphabet.
 func NewV7() string {
 	return DefaultEncoder.Encode(uuid.NewV7())
 }
@@ -88,11 +76,25 @@ func NewV7() string {
 // NewV5 returns the UUIDv5 of name within namespace, encoded with base57.
 //
 // The namespace is given explicitly, unlike NewWithNamespace which guesses it
-// from the name. Use NewEncoder to encode with a different alphabet:
-//
-//	shortuuid.NewEncoder(abc).Encode(shortuuid.UUIDv5(ns, name))
+// from the name.
 func NewV5(namespace uuid.UUID, name string) string {
 	return DefaultEncoder.Encode(UUIDv5(namespace, name))
+}
+
+// UUIDv5 returns the version 5 (SHA-1, name-based) UUID of name within
+// namespace, as defined in RFC 9562, Section 5.5.
+//
+// Pass the bare name: an OID is "1.2.840.113549", not
+// "urn:oid:1.2.840.113549".
+func UUIDv5(namespace uuid.UUID, name string) (u uuid.UUID) {
+	h := sha1.New()
+	h.Write(namespace[:])
+	h.Write(unsafe.Slice(unsafe.StringData(name), len(name)))
+	s := h.Sum(make([]byte, 0, sha1.Size))
+	copy(u[:], s)
+	u[6] = (u[6] & 0x0f) | uint8((5&0xf)<<4)
+	u[8] = (u[8] & 0x3f) | 0x80 // RFC 4122 variant
+	return u
 }
 
 // NewWithEncoder returns a new UUIDv4, encoded with enc.
@@ -140,9 +142,8 @@ func NewWithNamespace(name string) string {
 // The alphabet will be automatically sorted and deduplicated to ensure
 // consistency.
 //
-// Deprecated: Sorting and deduplicating abc costs more than the encoding
-// itself, and this pays it on every call with no way to hoist it out. Build the
-// encoder once with NewEncoder and reuse it:
+// Deprecated: That preparation costs more than the encoding and happens on
+// every call, with no way to lift it out. Keep one encoder instead:
 //
 //	var enc = shortuuid.NewEncoder(abc)
 //	enc.Encode(uuid.New())
@@ -152,20 +153,4 @@ func NewWithAlphabet(abc string) string {
 
 func hasPrefixCaseInsensitive(s, prefix string) bool {
 	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
-}
-
-// UUIDv5 returns the version 5 (SHA-1, name-based) UUID of name within
-// namespace, as defined in RFC 9562, Section 5.5.
-//
-// Pass the bare name: an OID is "1.2.840.113549", not
-// "urn:oid:1.2.840.113549".
-func UUIDv5(namespace uuid.UUID, name string) (u uuid.UUID) {
-	h := sha1.New()
-	h.Write(namespace[:])
-	h.Write(unsafe.Slice(unsafe.StringData(name), len(name)))
-	s := h.Sum(make([]byte, 0, sha1.Size))
-	copy(u[:], s)
-	u[6] = (u[6] & 0x0f) | uint8((5&0xf)<<4)
-	u[8] = (u[8] & 0x3f) | 0x80 // RFC 4122 variant
-	return u
 }
