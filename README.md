@@ -53,6 +53,13 @@ shortuuid.NewV5(shortuuid.NameSpaceX500, "CN=example,O=org")
 
 Pass the bare name — an OID is `"1.2.840.113549"`, not `"urn:oid:1.2.840.113549"`.
 
+Decoding turns a shortuuid back into a UUID:
+
+```go
+u, err := shortuuid.DefaultEncoder.Decode("KwSysDpxcBU9FNhGkn2dCf")
+// 64d1355f-d052-4bd9-83f4-39b93fb1c01f
+```
+
 A custom alphabet (at least 2 characters long) needs its own encoder. Build it
 once and reuse it — the alphabet is sorted and deduplicated up front, which
 costs more than encoding does:
@@ -68,6 +75,13 @@ The encoder takes any UUID, so one encoder covers every version:
 ```go
 enc.Encode(uuid.NewV7())
 enc.Encode(shortuuid.UUIDv5(shortuuid.NameSpaceDNS, "example.com")) // dwt3CSai2mbrm9sKcKVrov
+```
+
+Decode with the same encoder, since the alphabet has to match:
+
+```go
+u, err := enc.Decode("dwt3CSai2mbrm9sKcKVrov")
+// cfbff0d1-9375-5685-968c-48ce8b15ae17
 ```
 
 <details>
