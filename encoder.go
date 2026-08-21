@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // encoder is a generic encoder that can encode/decode UUIDs using any alphabet.

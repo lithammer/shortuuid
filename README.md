@@ -9,8 +9,8 @@ compatible with the Python library
 
 Often, one needs to use non-sequential IDs in places where users will see them,
 but the IDs must be as concise and easy to use as possible. shortuuid solves
-this problem by generating UUIDs using
-[google/uuid](https://github.com/google/uuid) and then translating them to
+this problem by generating UUIDs using the standard library
+[`uuid`](https://pkg.go.dev/uuid) package (Go 1.27+) and then translating them to
 base57 using lowercase and uppercase letters and digits, and removing
 similar-looking characters such as l, 1, I, O and 0.
 
@@ -56,8 +56,8 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/google/uuid"
 	"github.com/lithammer/shortuuid/v5"
+	"uuid"
 )
 
 type base58Encoder struct{}
@@ -67,7 +67,11 @@ func (enc base58Encoder) Encode(u uuid.UUID) string {
 }
 
 func (enc base58Encoder) Decode(s string) (uuid.UUID, error) {
-	return uuid.FromBytes(base58.Decode(s))
+	b := base58.Decode(s)
+	if len(b) != 16 {
+		return uuid.UUID{}, fmt.Errorf("invalid UUID (got %d bytes)", len(b))
+	}
+	return uuid.UUID(b), nil
 }
 
 func main() {

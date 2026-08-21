@@ -1,7 +1,7 @@
 // Package shortuuid provides a library for generating concise, unambiguous,
-// URL-safe UUIDs. It generates UUIDs using github.com/google/uuid and then
-// translates them to base57 using a custom alphabet that removes similar-looking
-// characters (l, 1, I, O, 0).
+// URL-safe UUIDs. It generates UUIDs using the standard library uuid package
+// and then translates them to base57 using a custom alphabet that removes
+// similar-looking characters (l, 1, I, O, 0).
 //
 // The package is compatible with the Python library shortuuid and provides
 // both a default encoder (base57) and support for custom alphabets and encoders.
@@ -11,27 +11,27 @@ import (
 	"crypto/sha1"
 	"strings"
 	"unsafe"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // DefaultEncoder is the default encoder used when generating new UUIDs, and is
 // based on Base57.
 var DefaultEncoder = b57Encoder{}
 
-// Well-known namespace IDs from RFC 9562, Section 6.6.
+// Well-known namespace IDs from RFC 9562, Section 6.6. The standard library
+// uuid package does not export these, so they are spelled out here.
 var (
 	// NameSpaceDNS is the UUID DNS namespace.
-	NameSpaceDNS = uuid.NameSpaceDNS
+	NameSpaceDNS = uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
 	// NameSpaceURL is the UUID URL namespace.
-	NameSpaceURL = uuid.NameSpaceURL
+	NameSpaceURL = uuid.MustParse("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 
 	// NameSpaceOID is the UUID OID namespace.
-	NameSpaceOID = uuid.NameSpaceOID
+	NameSpaceOID = uuid.MustParse("6ba7b812-9dad-11d1-80b4-00c04fd430c8")
 
 	// NameSpaceX500 is the UUID X500 namespace.
-	NameSpaceX500 = uuid.NameSpaceX500
+	NameSpaceX500 = uuid.MustParse("6ba7b814-9dad-11d1-80b4-00c04fd430c8")
 )
 
 // Encoder is an interface for encoding/decoding UUIDs to strings.
