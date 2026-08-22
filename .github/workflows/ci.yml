@@ -20,11 +20,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Download Go dependencies
-        run: go mod download -x
-        env:
-          GOPROXY: "https://proxy.golang.org"
-
       - name: Lint
         uses: golangci/golangci-lint-action@v9.3.0
         with:
