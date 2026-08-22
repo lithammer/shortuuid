@@ -129,6 +129,38 @@ var testVector = []struct {
 	{"f9ee01c3-2015-4716-930e-4d5449810833", "nUfojcH2M5j9j3Tk5A8mf7"},
 }
 
+func TestNew(t *testing.T) {
+	// New promises a random UUID but not which version, so this checks only
+	// that consecutive calls differ and that the result survives a round trip.
+	first, second := New(), New()
+	if first == second {
+		t.Errorf("New returned %q twice; it should be random", first)
+	}
+	if _, err := DefaultEncoder.Decode(first); err != nil {
+		t.Errorf("New produced %q, which does not decode: %v", first, err)
+	}
+}
+
+func TestNewV4(t *testing.T) {
+	first, second := NewV4(), NewV4()
+	if first == second {
+		t.Errorf("NewV4 returned %q twice; it should be random", first)
+	}
+
+	u, err := DefaultEncoder.Decode(first)
+	if err != nil {
+		t.Fatalf("NewV4 produced %q, which does not decode: %v", first, err)
+	}
+	// Unlike New, NewV4 names the version, so the bits have to back that up: a
+	// body calling uuid.NewV7 by accident would pass every other test.
+	if version := u[6] >> 4; version != 4 {
+		t.Errorf("NewV4 produced version %d, want 4", version)
+	}
+	if variant := u[8] >> 6; variant != 0b10 {
+		t.Errorf("NewV4 produced variant %#b, want 0b10", variant)
+	}
+}
+
 func TestNewWithNamespace(t *testing.T) {
 	tests := []struct {
 		name string
