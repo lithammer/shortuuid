@@ -60,6 +60,24 @@ func (a *alphabet) Length() int64 {
 	return a.len
 }
 
+// isDefault reports whether a holds exactly DefaultAlphabet. It compares bytes
+// in place because converting chars to a string to compare it allocates, and
+// costs more than building the alphabet did.
+//
+// maxBytes of 1 means every rune is single byte, chars being sorted, so the
+// truncation to byte is safe only under that guard.
+func (a *alphabet) isDefault() bool {
+	if a.maxBytes != 1 || int(a.len) != len(DefaultAlphabet) {
+		return false
+	}
+	for i, c := range a.chars {
+		if byte(c) != DefaultAlphabet[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // Index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
 func (a *alphabet) Index(t rune) (int64, error) {

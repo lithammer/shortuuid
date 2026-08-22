@@ -44,7 +44,7 @@ type Encoder interface {
 // Panics if abc (after removing duplicates) has fewer than 2 characters.
 func NewEncoder(abc string) Encoder {
 	a := newAlphabet(abc)
-	if string(a.chars) == DefaultAlphabet {
+	if a.isDefault() {
 		return DefaultEncoder
 	}
 	return encoder{a}
