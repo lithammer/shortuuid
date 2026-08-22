@@ -100,8 +100,8 @@ func UUIDv5(namespace uuid.UUID, name string) (u uuid.UUID) {
 // NewWithEncoder returns a new UUID, encoded with enc. The version is the one
 // New returns.
 //
-// Deprecated: Call enc.Encode directly. It costs the same, and it encodes
-// versions other than v4:
+// Deprecated: Call enc.Encode directly. It costs the same, and it encodes the
+// other versions too:
 //
 //	enc.Encode(uuid.New())
 //	enc.Encode(uuid.NewV7())
