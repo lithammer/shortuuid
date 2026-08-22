@@ -120,20 +120,14 @@ func NewWithEncoder(enc Encoder) string {
 //
 // Deprecated: Use NewV5 with an explicit namespace, or New for a random v4.
 func NewWithNamespace(name string) string {
-	var u uuid.UUID
-
 	switch {
 	case name == "":
-		u = uuid.New()
-	case hasPrefixFold(name, "https://"):
-		u = UUIDv5(NameSpaceURL, name)
-	case hasPrefixFold(name, "http://"):
-		u = UUIDv5(NameSpaceURL, name)
+		return New()
+	case hasPrefixFold(name, "https://"), hasPrefixFold(name, "http://"):
+		return NewV5(NameSpaceURL, name)
 	default:
-		u = UUIDv5(NameSpaceDNS, name)
+		return NewV5(NameSpaceDNS, name)
 	}
-
-	return DefaultEncoder.Encode(u)
 }
 
 // NewWithAlphabet returns a new UUID, encoded using the alternative alphabet
