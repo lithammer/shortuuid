@@ -205,10 +205,10 @@ func (u uint128) mulAdd64(m uint64, a uint64) (uint128, error) {
 	return uint128{lo, hi}, nil
 }
 
-// mulAddDigits folds a partial group holding the given number of base-base
-// digits into u, scaling u by base^digits. A full group scales by a
-// precomputed maxDivisor instead; this recomputes the power because partial
-// groups occur at most once per decode.
+// mulAddDigits folds a partial group of digits into u, scaling u by
+// base^digits. A full group scales by the precomputed maxDivisor instead;
+// this recomputes the power because a partial group occurs at most once per
+// decode.
 func (u uint128) mulAddDigits(base, group uint64, digits int) (uint128, error) {
 	pow := uint64(1)
 	for range digits {
