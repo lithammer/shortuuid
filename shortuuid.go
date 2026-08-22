@@ -92,8 +92,8 @@ func UUIDv5(namespace uuid.UUID, name string) (u uuid.UUID) {
 	h.Write(unsafe.Slice(unsafe.StringData(name), len(name)))
 	s := h.Sum(make([]byte, 0, sha1.Size))
 	copy(u[:], s)
-	u[6] = (u[6] & 0x0f) | uint8((5&0xf)<<4)
-	u[8] = (u[8] & 0x3f) | 0x80 // RFC 4122 variant
+	u[6] = (u[6] & 0x0f) | 0x50 // version 5
+	u[8] = (u[8] & 0x3f) | 0x80 // variant 10
 	return u
 }
 
