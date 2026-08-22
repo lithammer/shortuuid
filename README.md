@@ -67,7 +67,7 @@ reuse it:
 ```go
 var enc = shortuuid.NewEncoder("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy=")
 
-enc.Encode(uuid.New())   // iZsai==fWebXd5rLRWFB=u
+enc.Encode(uuid.New())
 ```
 
 The encoder takes any UUID, so one encoder covers every version:
