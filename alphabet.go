@@ -11,6 +11,12 @@ import (
 // errNotInAlphabet is wrapped with the offending character by the decoders.
 var errNotInAlphabet = errors.New("character is not part of the alphabet")
 
+// notInAlphabet names the character that could not be decoded. Both decoders
+// report it, so the format lives here rather than at each of their call sites.
+func notInAlphabet(c rune) error {
+	return fmt.Errorf("%w: %q", errNotInAlphabet, c)
+}
+
 // DefaultAlphabet is the default alphabet used for base57 encoding.
 // It excludes similar-looking characters (0, 1, I, O, l) to avoid confusion.
 const (
@@ -67,7 +73,7 @@ func (a *alphabet) Index(t rune) (int64, error) {
 		}
 	}
 	if i >= int(a.len) || a.chars[i] != t {
-		return 0, fmt.Errorf("%w: %q", errNotInAlphabet, t)
+		return 0, notInAlphabet(t)
 	}
 	return int64(i), nil
 }

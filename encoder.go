@@ -3,7 +3,6 @@ package shortuuid
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 	"math/bits"
 	"unicode/utf8"
@@ -148,11 +147,11 @@ func (e b57Encoder) Decode(s string) (u uuid.UUID, err error) {
 
 	for _, c := range s {
 		if c > 255 {
-			return u, fmt.Errorf("%w: %q", errNotInAlphabet, c)
+			return u, notInAlphabet(c)
 		}
 		ind = uint64(reverseB57[c])
 		if ind == 255 {
-			return u, fmt.Errorf("%w: %q", errNotInAlphabet, c)
+			return u, notInAlphabet(c)
 		}
 		n64 = n64*57 + ind
 		i++
