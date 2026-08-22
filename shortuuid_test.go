@@ -270,7 +270,8 @@ func TestNewV5(t *testing.T) {
 
 func TestNewEncoder(t *testing.T) {
 	// The default alphabet must route to the optimised base57 encoder rather
-	// than the generic one; the two agree on output, so only speed differs.
+	// than the generic one. Substituting it is only safe while the two agree in
+	// both directions, which is a stronger claim than agreeing on Encode.
 	if enc := NewEncoder(DefaultAlphabet); enc != Encoder(DefaultEncoder) {
 		t.Errorf("NewEncoder(DefaultAlphabet) = %T, want %T", enc, DefaultEncoder)
 	}
