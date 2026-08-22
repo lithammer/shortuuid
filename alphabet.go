@@ -89,10 +89,6 @@ func newAlphabet(s string) alphabet {
 	return a
 }
 
-func (a *alphabet) Length() int64 {
-	return a.len
-}
-
 // isDefault reports whether a holds exactly DefaultAlphabet. It compares bytes
 // in place because converting chars to a string to compare it allocates, and
 // costs more than building the alphabet did.
