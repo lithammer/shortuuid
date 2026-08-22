@@ -165,20 +165,27 @@ func TestNewV4(t *testing.T) {
 func TestNewWithNamespace(t *testing.T) {
 	tests := []struct {
 		name string
+		ns   uuid.UUID
 		uuid string
 	}{
-		{"http://www.example.com/", "nzUQAfy7CW4Dd4kzLguPSV"},
-		{"HTTP://www.example.com/", "N9ZezvXJcoXvKzwiNmGYmH"},
-		{"Https://www.example.com/", "jSz34Z6QzADzy93ywucXMv"},
-		{"example.com/", "kueUMiGUbGccYhpZK8Czat"},
-		{"うえおなにぬねのウエオナニヌネノうえおなにぬねのウエオナニヌネノ", "Mp2Q7GQSRYnoDZyCtGttDg"},
-		{"う", "dTbaUbVKrhNkkZKEwZxLqa"},
+		{"http://www.example.com/", NameSpaceURL, "nzUQAfy7CW4Dd4kzLguPSV"},
+		{"HTTP://www.example.com/", NameSpaceURL, "N9ZezvXJcoXvKzwiNmGYmH"},
+		{"Https://www.example.com/", NameSpaceURL, "jSz34Z6QzADzy93ywucXMv"},
+		{"example.com/", NameSpaceDNS, "kueUMiGUbGccYhpZK8Czat"},
+		{"うえおなにぬねのウエオナニヌネノうえおなにぬねのウエオナニヌネノ", NameSpaceDNS, "Mp2Q7GQSRYnoDZyCtGttDg"},
+		{"う", NameSpaceDNS, "dTbaUbVKrhNkkZKEwZxLqa"},
 	}
 	for _, test := range tests {
 		u := NewWithNamespace(test.name)
 
 		if u != test.uuid {
 			t.Errorf("expected %q, got %q", test.uuid, u)
+		}
+
+		// The deprecation note claims NewV5 with the guessed namespace
+		// produces the same ID. Hold it to that.
+		if got := NewV5(test.ns, test.name); got != test.uuid {
+			t.Errorf("NewV5(%v, %q) = %q, want %q", test.ns, test.name, got, test.uuid)
 		}
 	}
 
@@ -270,10 +277,11 @@ func TestDecodeMatchesReference(t *testing.T) {
 			"generic":    encoder{a},
 		}
 		for name, enc := range decoders {
-			// Two more than encLen so overflowing lengths are covered, and a
-			// second pass with a leading zero digit so the longest lengths are
-			// exercised both above and below the 128-bit limit.
-			for n := 0; n <= int(a.encLen)+2; n++ {
+			// Three full digit groups so overflow is caught both at an
+			// in-loop group flush and in the partial tail, and a second pass
+			// with a leading zero digit so the longest lengths are exercised
+			// both above and below the 128-bit limit.
+			for n := 0; n <= 3*a.maxDigits+2; n++ {
 				for _, lead := range []bool{false, true} {
 					runes := make([]rune, n)
 					for i := range runes {
@@ -362,6 +370,13 @@ func TestNewEncoder(t *testing.T) {
 		t.Errorf("NewEncoder(DefaultAlphabet) = %T, want %T", enc, DefaultEncoder)
 	}
 
+	// An alphabet of the same size and width as the default but with other
+	// characters must stay on the generic encoder.
+	notDefault := "!" + DefaultAlphabet[:len(DefaultAlphabet)-1]
+	if enc := NewEncoder(notDefault); enc == Encoder(DefaultEncoder) {
+		t.Errorf("NewEncoder(%q) = DefaultEncoder, want the generic encoder", notDefault)
+	}
+
 	// Reordering the characters, or repeating them, must give the same encoder.
 	u := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
 	want := NewEncoder("0123456789abcdef").Encode(u)
@@ -390,6 +405,27 @@ func TestNewWithAlphabet(t *testing.T) {
 	u2 := enc.Encode(u1)
 	if u2 != "iZsai==fWebXd5rLRWFB=u" {
 		t.Errorf("expected uuid to be %q, got %q", "iZsai==fWebXd5rLRWFB=u", u2)
+	}
+
+	// The deprecation note promises NewEncoder as the drop-in replacement, so
+	// its encoder has to decode what NewWithAlphabet produces.
+	u, err := NewEncoder(abc).Decode(NewWithAlphabet(abc))
+	if err != nil {
+		t.Fatalf("NewEncoder(abc).Decode(NewWithAlphabet(abc)) returned %v", err)
+	}
+	if version := u[6] >> 4; version != 4 {
+		t.Errorf("NewWithAlphabet generated version %d, want 4", version)
+	}
+}
+
+func TestNewWithEncoder(t *testing.T) {
+	// NewWithEncoder promises the version New returns, encoded with enc.
+	u, err := DefaultEncoder.Decode(NewWithEncoder(DefaultEncoder))
+	if err != nil {
+		t.Fatalf("Decode(NewWithEncoder(DefaultEncoder)) returned %v", err)
+	}
+	if version := u[6] >> 4; version != 4 {
+		t.Errorf("NewWithEncoder generated version %d, want 4", version)
 	}
 }
 
