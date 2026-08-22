@@ -2,6 +2,7 @@ package shortuuid
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"uuid"
 )
@@ -195,6 +196,34 @@ func TestDecodingErrors(t *testing.T) {
 		_, err := DefaultEncoder.Decode(test.shortuuid)
 		if !errors.Is(err, test.want) {
 			t.Errorf("Decode(%q) returned %v, want %v", test.shortuuid, err, test.want)
+		}
+	}
+}
+
+func TestDecodeMatchesGenericEncoder(t *testing.T) {
+	// b57Encoder consumes digits in groups of ten and has to scale whatever
+	// partial group is left by the number of digits it holds. Scaling by the
+	// wrong power returns a plausible UUID and no error, so the generic encoder
+	// over the same alphabet is the reference for every length -- not just the
+	// 22 that Encode produces.
+	generic := encoder{newAlphabet(DefaultAlphabet)}
+
+	for n := 1; n <= 24; n++ {
+		var sb strings.Builder
+		for i := range n {
+			sb.WriteByte(DefaultAlphabet[(i*7+3)%57])
+		}
+		s := sb.String()
+
+		want, wantErr := generic.Decode(s)
+		got, gotErr := DefaultEncoder.Decode(s)
+
+		if (gotErr == nil) != (wantErr == nil) {
+			t.Errorf("length %d (%q): b57 error %v, generic error %v", n, s, gotErr, wantErr)
+			continue
+		}
+		if gotErr == nil && got != want {
+			t.Errorf("length %d (%q): b57 decoded %v, generic decoded %v", n, s, got, want)
 		}
 	}
 }
