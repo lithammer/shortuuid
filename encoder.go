@@ -92,11 +92,6 @@ const (
 	b57MaxU64Divisor = 362033331456891249 // 57^10
 )
 
-// b57Encoder is an optimized encoder for the default base57 alphabet.
-// It uses a specialized implementation that's faster than the generic encoder
-// for the common case of base57 encoding/decoding.
-type b57Encoder struct{}
-
 // b57Pow[i] is 57 to the power i. Decode consumes digits in groups of
 // b57MaxU64Digits and needs to scale whatever partial group is left over by
 // the number of digits it actually holds.
@@ -104,6 +99,11 @@ var b57Pow = [b57MaxU64Digits]uint64{
 	1, 57, 3249, 185193, 10556001,
 	601692057, 34296447249, 1954897493193, 111429157112001, 6351461955384057,
 }
+
+// b57Encoder is an optimized encoder for the default base57 alphabet.
+// It uses a specialized implementation that's faster than the generic encoder
+// for the common case of base57 encoding/decoding.
+type b57Encoder struct{}
 
 func (e b57Encoder) Encode(u uuid.UUID) string {
 	num := uint128{
