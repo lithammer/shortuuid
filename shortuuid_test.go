@@ -2,7 +2,8 @@ package shortuuid
 
 import (
 	"errors"
-	"strings"
+	"math/big"
+	"slices"
 	"testing"
 	"uuid"
 )
@@ -232,32 +233,85 @@ func TestDecodingErrors(t *testing.T) {
 	}
 }
 
-func TestDecodeMatchesGenericEncoder(t *testing.T) {
-	// b57Encoder consumes digits in groups of ten and has to scale whatever
-	// partial group is left by the number of digits it holds. Scaling by the
-	// wrong power returns a plausible UUID and no error, so the generic encoder
-	// over the same alphabet is the reference for every length -- not just the
-	// 22 that Encode produces.
-	generic := encoder{newAlphabet(DefaultAlphabet)}
-
-	for n := 1; n <= 24; n++ {
-		var sb strings.Builder
-		for i := range n {
-			sb.WriteByte(DefaultAlphabet[(i*7+3)%57])
+// referenceDecode is a deliberately naive big.Int reimplementation of base-N
+// decoding. The optimized decoders consume digits in uint64-sized groups and
+// scale a partial group by the number of digits it holds; scaling by the wrong
+// power returns a plausible UUID and no error, so the fixture they must agree
+// with cannot share that machinery.
+func referenceDecode(chars []rune, s string) (uuid.UUID, error) {
+	var u uuid.UUID
+	base := big.NewInt(int64(len(chars)))
+	n := new(big.Int)
+	for _, c := range s {
+		i := slices.Index(chars, c)
+		if i < 0 {
+			return u, notInAlphabet(c)
 		}
-		s := sb.String()
+		n.Mul(n, base)
+		n.Add(n, big.NewInt(int64(i)))
+	}
+	if n.BitLen() > 128 {
+		return u, errOutOfRange
+	}
+	n.FillBytes(u[:])
+	return u, nil
+}
 
-		want, wantErr := generic.Decode(s)
-		got, gotErr := DefaultEncoder.Decode(s)
-
-		if (gotErr == nil) != (wantErr == nil) {
-			t.Errorf("length %d (%q): b57 error %v, generic error %v", n, s, gotErr, wantErr)
-			continue
+func TestDecodeMatchesReference(t *testing.T) {
+	alphabets := []string{
+		DefaultAlphabet,
+		"0123456789abcdef",
+		"うえおなにぬねのウエオナニヌネノ",
+	}
+	for _, abc := range alphabets {
+		a := newAlphabet(abc)
+		decoders := map[string]Encoder{
+			"NewEncoder": NewEncoder(abc), // DefaultEncoder for the default alphabet
+			"generic":    encoder{a},
 		}
-		if gotErr == nil && got != want {
-			t.Errorf("length %d (%q): b57 decoded %v, generic decoded %v", n, s, got, want)
+		for name, enc := range decoders {
+			// Two more than encLen so overflowing lengths are covered, and a
+			// second pass with a leading zero digit so the longest lengths are
+			// exercised both above and below the 128-bit limit.
+			for n := 0; n <= int(a.encLen)+2; n++ {
+				for _, lead := range []bool{false, true} {
+					runes := make([]rune, n)
+					for i := range runes {
+						runes[i] = a.chars[(i*7+3)%len(a.chars)]
+					}
+					if lead && n > 0 {
+						runes[0] = a.chars[0]
+					}
+					s := string(runes)
+
+					want, wantErr := referenceDecode(a.chars, s)
+					got, gotErr := enc.Decode(s)
+
+					if !errorsAgree(gotErr, wantErr) {
+						t.Errorf("%s %q: length %d (%q): error %v, reference error %v", name, abc, n, s, gotErr, wantErr)
+						continue
+					}
+					if gotErr == nil && got != want {
+						t.Errorf("%s %q: length %d (%q): decoded %v, reference decoded %v", name, abc, n, s, got, want)
+					}
+				}
+			}
+			for _, bad := range []string{"#", "日"} {
+				s := string(a.chars[0]) + bad
+				if _, err := enc.Decode(s); !errors.Is(err, errNotInAlphabet) {
+					t.Errorf("%s %q: Decode(%q) returned %v, want %v", name, abc, s, err, errNotInAlphabet)
+				}
+			}
 		}
 	}
+}
+
+// errorsAgree reports whether two decode errors are the same kind: both nil,
+// both out of range, or both a character outside the alphabet.
+func errorsAgree(got, want error) bool {
+	return errors.Is(got, errOutOfRange) == errors.Is(want, errOutOfRange) &&
+		errors.Is(got, errNotInAlphabet) == errors.Is(want, errNotInAlphabet) &&
+		(got == nil) == (want == nil)
 }
 
 func TestNewV7Sortable(t *testing.T) {
