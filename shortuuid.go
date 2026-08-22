@@ -97,7 +97,8 @@ func UUIDv5(namespace uuid.UUID, name string) (u uuid.UUID) {
 	return u
 }
 
-// NewWithEncoder returns a new UUIDv4, encoded with enc.
+// NewWithEncoder returns a new UUID, encoded with enc. The version is the one
+// New returns.
 //
 // Deprecated: Call enc.Encode directly. It costs the same, and it encodes
 // versions other than v4:
@@ -135,8 +136,8 @@ func NewWithNamespace(name string) string {
 	return DefaultEncoder.Encode(u)
 }
 
-// NewWithAlphabet returns a new UUIDv4, encoded using the alternative
-// alphabet abc.
+// NewWithAlphabet returns a new UUID, encoded using the alternative alphabet
+// abc. The version is the one New returns.
 //
 // Panics if abc (after removing duplicates) has fewer than 2 characters.
 // The alphabet will be automatically sorted and deduplicated to ensure
