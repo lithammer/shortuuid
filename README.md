@@ -133,7 +133,7 @@ google/uuid value converts with `uuid.UUID(v)`.
 `NewEncoder` instead. `NewWithEncoder(enc)` is `enc.Encode(uuid.New())` at the
 same cost, and encoding directly also reaches the other UUID versions.
 `NewWithAlphabet` re-sorts the alphabet on every call with no way to avoid it,
-so a reused encoder is roughly 2.5x faster:
+so a reused encoder is nearly twice as fast:
 
 ```go
 shortuuid.NewWithAlphabet(abc)        // deprecated
