@@ -124,6 +124,11 @@ func main() {
 `New` is unchanged, so code calling it only needs its import path bumped to
 `/v5`.
 
+`Encoder` now names the standard library `uuid.UUID` rather than
+`github.com/google/uuid.UUID`, so a custom encoder stops satisfying the
+interface until it imports `uuid` instead. Both types are `[16]byte`, so a
+google/uuid value converts with `uuid.UUID(v)`.
+
 `NewWithEncoder` and `NewWithAlphabet` still work, but are deprecated. Use
 `NewEncoder` instead. `NewWithEncoder(enc)` is `enc.Encode(uuid.New())` at the
 same cost, and encoding directly also reaches the other UUID versions.
@@ -154,6 +159,10 @@ Reproducing the guess takes a small helper:
 
 ```go
 func fromName(name string) string {
+	if name == "" {
+		return shortuuid.New()
+	}
+
 	lower := strings.ToLower(name)
 	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
 		return shortuuid.NewV5(shortuuid.NameSpaceURL, name)
