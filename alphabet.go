@@ -89,18 +89,16 @@ func newAlphabet(s string) alphabet {
 	return a
 }
 
-// isDefault reports whether a holds exactly DefaultAlphabet. It compares bytes
-// in place because converting chars to a string to compare it allocates, and
-// costs more than building the alphabet did.
-//
-// maxBytes of 1 means every rune is single byte, chars being sorted, so the
-// truncation to byte is safe only under that guard.
+// isDefault reports whether a holds exactly DefaultAlphabet. Both are sorted
+// and deduplicated, so comparing elementwise is enough. The comparison stays
+// in place because converting chars to a string allocates, and costs more
+// than building the alphabet did.
 func (a *alphabet) isDefault() bool {
-	if a.maxBytes != 1 || int(a.len) != len(DefaultAlphabet) {
+	if int(a.len) != len(DefaultAlphabet) {
 		return false
 	}
 	for i, c := range a.chars {
-		if byte(c) != DefaultAlphabet[i] {
+		if c != rune(DefaultAlphabet[i]) {
 			return false
 		}
 	}
