@@ -19,9 +19,7 @@ func notInAlphabet(c rune) error {
 
 // DefaultAlphabet is the default alphabet used for base57 encoding.
 // It excludes similar-looking characters (0, 1, I, O, l) to avoid confusion.
-const (
-	DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-)
+const DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 // alphabet represents a character set for base-N encoding. It stores the
 // sorted, deduplicated characters along with precomputed values for efficient
