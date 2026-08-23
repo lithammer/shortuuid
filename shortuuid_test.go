@@ -429,73 +429,55 @@ func TestNewWithEncoder(t *testing.T) {
 	}
 }
 
-func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
-	abc := DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ"
-	enc := encoder{newAlphabet(abc)}
-	u1 := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438374")
-	u2 := enc.Encode(u1)
-	if u2 != "jatbjAAgXfcYe5sMSXGCAお" {
-		t.Errorf("expected uuid to be %q, got %q", "jatbjAAgXfcYe5sMSXGCAお", u2)
+// TestEncoderGoldens pins the generic encoder to fixed outputs across the
+// alphabet shapes it dispatches on: mixed single/multibyte, minimum size,
+// heavy duplication, and pure multibyte. A changed golden means the wire
+// format changed.
+func TestEncoderGoldens(t *testing.T) {
+	tests := []struct {
+		abc  string
+		uuid string
+		want string
+	}{
+		{
+			DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ",
+			"e9ae9ba7-4fb1-4a6d-bbca-5315ed438374",
+			"jatbjAAgXfcYe5sMSXGCAお",
+		},
+		{
+			"うえ",
+			"bcee4c4f-cee8-4413-8f10-0f68d75c797b",
+			"えうええええううえええうえええううえううええうううえううええええええううえええうえええうえううううえうううえうううううえううえええうううええええうううえううううううううええええうええうえうううええうえうえええうえうえええうううええええううえうええええうええ",
+		},
+		{
+			"21345687654123456",
+			"13ef31aa-934b-4f37-93b3-6e3ef30148e2",
+			"1348474176355756628268227744454847411355453",
+		},
+		{
+			"うえおなにぬねのウエオナニヌネノ",
+			"13ef31aa-934b-4f37-93b3-6e3ef30148e2",
+			"えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお",
+		},
 	}
-}
+	for _, test := range tests {
+		enc := encoder{newAlphabet(test.abc)}
+		u1 := uuid.MustParse(test.uuid)
 
-func TestNewWithAlphabet_Short(t *testing.T) {
-	abc := "うえ"
-	enc := encoder{newAlphabet(abc)}
-	u1 := uuid.MustParse("bcee4c4f-cee8-4413-8f10-0f68d75c797b")
-	exp := "えうええええううえええうえええううえううええうううえううええええええううえええうえええうえううううえうううえうううううえううえええうううええええうううえううううううううええええうええうえうううええうえうえええうえうえええうううええええううえうええええうええ"
-	u2 := enc.Encode(u1)
-	if u2 != exp {
-		t.Errorf("expected uuid to be %q, got %q", exp, u2)
-		return
-	}
-	u3, err := enc.Decode(u2)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if u1 != u3 {
-		t.Errorf("expected %q, got %q", u1, u3)
-	}
-}
+		u2 := enc.Encode(u1)
+		if u2 != test.want {
+			t.Errorf("alphabet %q: Encode(%s) = %q, want %q", test.abc, test.uuid, u2, test.want)
+			continue
+		}
 
-func TestAlphabetCustomLen(t *testing.T) {
-	abc := "21345687654123456"
-	enc := encoder{newAlphabet(abc)}
-	u1 := uuid.MustParse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
-	exp := "1348474176355756628268227744454847411355453"
-	u2 := enc.Encode(u1)
-	if u2 != exp {
-		t.Errorf("expected uuid to be %q, got %q", exp, u2)
-		return
-	}
-	u3, err := enc.Decode(u2)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if u1 != u3 {
-		t.Errorf("expected %q, got %q", u1, u3)
-	}
-}
-
-func TestAlphabet_MB(t *testing.T) {
-	abc := "うえおなにぬねのウエオナニヌネノ"
-	enc := encoder{newAlphabet(abc)}
-	u1 := uuid.MustParse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
-	exp := "えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお"
-	u2 := enc.Encode(u1)
-	if u2 != exp {
-		t.Errorf("expected uuid to be %q, got %q", exp, u2)
-		return
-	}
-	u3, err := enc.Decode(u2)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if u1 != u3 {
-		t.Errorf("expected %q, got %q", u1, u3)
+		u3, err := enc.Decode(u2)
+		if err != nil {
+			t.Errorf("alphabet %q: Decode(%q) returned %v", test.abc, u2, err)
+			continue
+		}
+		if u3 != u1 {
+			t.Errorf("alphabet %q: round trip returned %s, want %s", test.abc, u3, u1)
+		}
 	}
 }
 
