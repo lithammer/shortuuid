@@ -18,8 +18,8 @@ type encoder struct {
 // first according to the alphabet.
 func (e encoder) Encode(u uuid.UUID) string {
 	num := uint128{
-		binary.BigEndian.Uint64(u[8:]),
-		binary.BigEndian.Uint64(u[:8]),
+		Lo: binary.BigEndian.Uint64(u[8:]),
+		Hi: binary.BigEndian.Uint64(u[:8]),
 	}
 	if e.alphabet.maxBytes == 1 {
 		return e.encodeBytes(num)
@@ -104,7 +104,7 @@ func (e encoder) encodeRunes(num uint128) string {
 // instead of once per character.
 func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 	var n uint128
-	if e.alphabet.reverse != nil {
+	if e.alphabet.maxBytes == 1 {
 		n, err = e.decodeBytes(s)
 	} else {
 		n, err = e.decodeRunes(s)
@@ -121,7 +121,7 @@ func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 // with raw bytes. Any byte of a multibyte character maps to 255 in the table,
 // so such input fails the same way any character outside the alphabet does.
 func (e encoder) decodeBytes(s string) (n uint128, err error) {
-	l := uint64(e.alphabet.len)
+	l := uint64(len(e.alphabet.chars))
 	reverse := e.alphabet.reverse
 	var group uint64
 	var digits int
@@ -146,8 +146,8 @@ func (e encoder) decodeBytes(s string) (n uint128, err error) {
 // rune-index table when the alphabet was compact enough to build one, and by
 // binary search otherwise.
 func (e encoder) decodeRunes(s string) (n uint128, err error) {
-	l := uint64(e.alphabet.len)
-	var ind int64
+	l := uint64(len(e.alphabet.chars))
+	var ind int
 	var group uint64
 	var digits int
 	if t := e.alphabet.mb.runeIdx; t != nil {
@@ -201,8 +201,8 @@ var genericB57 = encoder{newAlphabet(DefaultAlphabet)}
 
 func (e b57Encoder) Encode(u uuid.UUID) string {
 	num := uint128{
-		binary.BigEndian.Uint64(u[8:]),
-		binary.BigEndian.Uint64(u[:8]),
+		Lo: binary.BigEndian.Uint64(u[8:]),
+		Hi: binary.BigEndian.Uint64(u[:8]),
 	}
 	var r uint64
 	var buf [22]byte

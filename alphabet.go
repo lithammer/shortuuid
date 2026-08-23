@@ -28,7 +28,6 @@ const (
 // encoding and decoding.
 type alphabet struct {
 	chars    []rune // sorted, deduplicated characters
-	len      int64  // number of characters in the alphabet
 	encLen   uint8  // maximum encoded length for a 128-bit value
 	maxBytes uint8  // maximum UTF-8 bytes needed for any character
 
@@ -90,11 +89,10 @@ func newAlphabet(s string) alphabet {
 
 	a := alphabet{
 		chars:    abc,
-		len:      int64(len(abc)),
 		encLen:   uint8(math.Ceil(128 / math.Log2(float64(len(abc))))),
 		maxBytes: uint8(utf8.RuneLen(abc[len(abc)-1])),
 	}
-	a.maxDivisor, a.maxDigits = maxPow(uint64(a.len))
+	a.maxDivisor, a.maxDigits = maxPow(uint64(len(abc)))
 	if a.maxBytes == 1 {
 		a.reverse = new([256]byte)
 		for i := range a.reverse {
@@ -134,7 +132,7 @@ func newAlphabet(s string) alphabet {
 // in place because converting chars to a string allocates, and costs more
 // than building the alphabet did.
 func (a *alphabet) isDefault() bool {
-	if int(a.len) != len(DefaultAlphabet) {
+	if len(a.chars) != len(DefaultAlphabet) {
 		return false
 	}
 	for i, c := range a.chars {
@@ -147,8 +145,8 @@ func (a *alphabet) isDefault() bool {
 
 // Index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
-func (a *alphabet) Index(t rune) (int64, error) {
-	i, j := 0, int(a.len)
+func (a *alphabet) Index(t rune) (int, error) {
+	i, j := 0, len(a.chars)
 	for i < j {
 		h := int(uint(i+j) >> 1)
 		if a.chars[h] < t {
@@ -157,8 +155,8 @@ func (a *alphabet) Index(t rune) (int64, error) {
 			j = h
 		}
 	}
-	if i >= int(a.len) || a.chars[i] != t {
+	if i >= len(a.chars) || a.chars[i] != t {
 		return 0, notInAlphabet(t)
 	}
-	return int64(i), nil
+	return i, nil
 }

@@ -9,7 +9,7 @@ func TestAlphabetIndex(t *testing.T) {
 	abc := newAlphabet(DefaultAlphabet)
 	tests := []struct {
 		char rune
-		want int64
+		want int
 		err  bool
 	}{
 		{'2', 0, false},
