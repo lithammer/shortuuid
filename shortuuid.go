@@ -15,7 +15,7 @@ import (
 )
 
 // DefaultEncoder is the default encoder used when generating new UUIDs, and is
-// based on Base57.
+// based on base57.
 var DefaultEncoder = b57Encoder{}
 
 // Well-known namespace IDs from RFC 9562, Section 6.6. The standard library
@@ -28,6 +28,10 @@ var (
 )
 
 // Encoder is an interface for encoding/decoding UUIDs to strings.
+//
+// Decode must invert Encode. The encoders this package provides write the
+// UUID as a base-N number, most significant digit first, and accept shorter
+// input on Decode by treating the missing leading digits as zeros.
 type Encoder interface {
 	Encode(uuid.UUID) string
 	Decode(string) (uuid.UUID, error)
@@ -74,9 +78,7 @@ func NewV7() string {
 }
 
 // NewV5 returns the UUIDv5 of name within namespace, encoded with base57.
-//
-// The namespace is given explicitly, unlike NewWithNamespace which guesses it
-// from the name.
+// The same namespace and name always produce the same shortuuid.
 func NewV5(namespace uuid.UUID, name string) string {
 	return DefaultEncoder.Encode(UUIDv5(namespace, name))
 }
@@ -89,6 +91,8 @@ func NewV5(namespace uuid.UUID, name string) string {
 func UUIDv5(namespace uuid.UUID, name string) (u uuid.UUID) {
 	h := sha1.New()
 	h.Write(namespace[:])
+	// Writing name in place skips the []byte copy (sha1 has no WriteString);
+	// safe because the hash neither mutates nor retains the slice.
 	h.Write(unsafe.Slice(unsafe.StringData(name), len(name)))
 	s := h.Sum(make([]byte, 0, sha1.Size))
 	copy(u[:], s)
@@ -133,9 +137,8 @@ func NewWithNamespace(name string) string {
 // NewWithAlphabet returns a new UUID, encoded using the alternative alphabet
 // abc. The version is the one New returns.
 //
-// Panics if abc (after removing duplicates) has fewer than 2 characters.
-// The alphabet will be automatically sorted and deduplicated to ensure
-// consistency.
+// The alphabet is sorted and deduplicated first, so the same characters in
+// any order encode alike. Panics if fewer than 2 distinct characters remain.
 //
 // Deprecated: That preparation costs more than the encoding and happens on
 // every call, with no way to lift it out. Keep one encoder instead:

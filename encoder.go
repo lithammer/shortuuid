@@ -9,10 +9,8 @@ import (
 	"uuid"
 )
 
-// encoder is a generic encoder that can encode/decode UUIDs using any alphabet.
-// It provides full support for custom alphabets including multibyte UTF-8 characters.
+// encoder encodes and decodes UUIDs over any alphabet, multibyte included.
 type encoder struct {
-	// alphabet is the character set to construct the UUID from.
 	alphabet alphabet
 }
 
@@ -144,6 +142,10 @@ func (e b57Encoder) Encode(u uuid.UUID) string {
 	}
 	var r uint64
 	var buf [22]byte
+	// The 22 digits split 10+10+2: quoRem64 pulls out two full uint64 groups
+	// and num.Lo keeps the top pair, since 2^128/57^20 < 57^2. Within a group,
+	// eight chained divisions leave r < 57^2, so the last two writes need no
+	// shift.
 	num, r = num.quoRem64(b57MaxU64Divisor)
 	buf[21], r = DefaultAlphabet[r%57], r/57
 	buf[20], r = DefaultAlphabet[r%57], r/57
@@ -168,7 +170,7 @@ func (e b57Encoder) Encode(u uuid.UUID) string {
 	buf[2] = DefaultAlphabet[r/57]
 	buf[1] = DefaultAlphabet[num.Lo%57]
 	buf[0] = DefaultAlphabet[num.Lo/57]
-	return unsafe.String(unsafe.SliceData(buf[:]), 22)
+	return unsafe.String(unsafe.SliceData(buf[:]), 22) // same as in strings.Builder
 }
 
 func (e b57Encoder) Decode(s string) (uuid.UUID, error) {

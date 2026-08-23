@@ -60,7 +60,7 @@ u, err := shortuuid.DefaultEncoder.Decode("KwSysDpxcBU9FNhGkn2dCf")
 // 64d1355f-d052-4bd9-83f4-39b93fb1c01f
 ```
 
-A custom alphabet (at least 2 characters long) needs its own encoder. Sorting
+A custom alphabet (at least 2 distinct characters) needs its own encoder. Sorting
 and deduplicating the alphabet happens up front, so build the encoder once and
 reuse it:
 
