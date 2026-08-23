@@ -21,30 +21,70 @@ func (e encoder) Encode(u uuid.UUID) string {
 		binary.BigEndian.Uint64(u[8:]),
 		binary.BigEndian.Uint64(u[:8]),
 	}
-	var r, ind uint64
-	i := int(e.alphabet.encLen - 1)
-	buf := make([]byte, int64(e.alphabet.encLen)*int64(e.alphabet.maxBytes))
-	lastPlaced := len(buf)
-	l := uint64(e.alphabet.len)
-	d, n := e.alphabet.maxDivisor, e.alphabet.maxDigits
+	if e.alphabet.maxBytes == 1 {
+		return e.encodeBytes(num)
+	}
+	return e.encodeRunes(num)
+}
 
-	for num.Hi > 0 || num.Lo > 0 {
+// encodeBytes encodes over a single-byte alphabet, where every digit is one
+// byte wide, so the output is exactly encLen bytes and the write position is
+// the digit position.
+func (e encoder) encodeBytes(num uint128) string {
+	chars := e.alphabet.chars
+	l := uint64(len(chars))
+	d, n := e.alphabet.maxDivisor, e.alphabet.maxDigits
+	buf := make([]byte, e.alphabet.encLen)
+	i := len(buf) - 1
+	var r uint64
+
+	for num.Hi > 0 {
 		num, r = num.quoRem64(d)
 		for j := 0; j < n && i >= 0; j++ {
-			r, ind = r/l, r%l
-			c := e.alphabet.chars[ind]
-			if e.alphabet.maxBytes == 1 {
-				buf[i] = byte(c)
-				lastPlaced--
-			} else {
-				lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
-			}
+			buf[i] = byte(chars[r%l])
+			r /= l
 			i--
 		}
 	}
-	firstRuneLen := utf8.RuneLen(e.alphabet.chars[0])
+	for r = num.Lo; r > 0 && i >= 0; i-- {
+		buf[i] = byte(chars[r%l])
+		r /= l
+	}
 	for ; i >= 0; i-- {
-		lastPlaced -= utf8.EncodeRune(buf[lastPlaced-firstRuneLen:], e.alphabet.chars[0])
+		buf[i] = byte(chars[0])
+	}
+	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
+}
+
+// encodeRunes encodes over a multibyte alphabet. Runes have varying widths, so
+// digits are written back to front at lastPlaced while i counts the digits
+// still to place, and the buffer is sized for the widest case and trimmed.
+func (e encoder) encodeRunes(num uint128) string {
+	chars := e.alphabet.chars
+	l := uint64(len(chars))
+	d, n := e.alphabet.maxDivisor, e.alphabet.maxDigits
+	var r uint64
+	i := int(e.alphabet.encLen - 1)
+	buf := make([]byte, int64(e.alphabet.encLen)*int64(e.alphabet.maxBytes))
+	lastPlaced := len(buf)
+
+	for num.Hi > 0 {
+		num, r = num.quoRem64(d)
+		for j := 0; j < n && i >= 0; j++ {
+			c := chars[r%l]
+			r /= l
+			lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
+			i--
+		}
+	}
+	for r = num.Lo; r > 0 && i >= 0; i-- {
+		c := chars[r%l]
+		r /= l
+		lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
+	}
+	firstRuneLen := utf8.RuneLen(chars[0])
+	for ; i >= 0; i-- {
+		lastPlaced -= utf8.EncodeRune(buf[lastPlaced-firstRuneLen:], chars[0])
 	}
 	buf = buf[lastPlaced:]
 	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
