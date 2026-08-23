@@ -1,10 +1,11 @@
 package shortuuid
 
 import (
-	"strings"
+	"errors"
+	"math/big"
+	"slices"
 	"testing"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 var testVector = []struct {
@@ -129,23 +130,62 @@ var testVector = []struct {
 	{"f9ee01c3-2015-4716-930e-4d5449810833", "nUfojcH2M5j9j3Tk5A8mf7"},
 }
 
+func TestNew(t *testing.T) {
+	// New promises a random UUID but not which version, so this checks only
+	// that consecutive calls differ and that the result survives a round trip.
+	first, second := New(), New()
+	if first == second {
+		t.Errorf("New returned %q twice; it should be random", first)
+	}
+	if _, err := DefaultEncoder.Decode(first); err != nil {
+		t.Errorf("New produced %q, which does not decode: %v", first, err)
+	}
+}
+
+func TestNewV4(t *testing.T) {
+	first, second := NewV4(), NewV4()
+	if first == second {
+		t.Errorf("NewV4 returned %q twice; it should be random", first)
+	}
+
+	u, err := DefaultEncoder.Decode(first)
+	if err != nil {
+		t.Fatalf("NewV4 produced %q, which does not decode: %v", first, err)
+	}
+	// Unlike New, NewV4 names the version, so the bits have to back that up: a
+	// body calling uuid.NewV7 by accident would pass every other test.
+	if version := u[6] >> 4; version != 4 {
+		t.Errorf("NewV4 produced version %d, want 4", version)
+	}
+	if variant := u[8] >> 6; variant != 0b10 {
+		t.Errorf("NewV4 produced variant %#b, want 0b10", variant)
+	}
+}
+
 func TestNewWithNamespace(t *testing.T) {
 	tests := []struct {
 		name string
+		ns   uuid.UUID
 		uuid string
 	}{
-		{"http://www.example.com/", "nzUQAfy7CW4Dd4kzLguPSV"},
-		{"HTTP://www.example.com/", "N9ZezvXJcoXvKzwiNmGYmH"},
-		{"Https://www.example.com/", "jSz34Z6QzADzy93ywucXMv"},
-		{"example.com/", "kueUMiGUbGccYhpZK8Czat"},
-		{"うえおなにぬねのウエオナニヌネノうえおなにぬねのウエオナニヌネノ", "Mp2Q7GQSRYnoDZyCtGttDg"},
-		{"う", "dTbaUbVKrhNkkZKEwZxLqa"},
+		{"http://www.example.com/", NameSpaceURL, "nzUQAfy7CW4Dd4kzLguPSV"},
+		{"HTTP://www.example.com/", NameSpaceURL, "N9ZezvXJcoXvKzwiNmGYmH"},
+		{"Https://www.example.com/", NameSpaceURL, "jSz34Z6QzADzy93ywucXMv"},
+		{"example.com/", NameSpaceDNS, "kueUMiGUbGccYhpZK8Czat"},
+		{"うえおなにぬねのウエオナニヌネノうえおなにぬねのウエオナニヌネノ", NameSpaceDNS, "Mp2Q7GQSRYnoDZyCtGttDg"},
+		{"う", NameSpaceDNS, "dTbaUbVKrhNkkZKEwZxLqa"},
 	}
 	for _, test := range tests {
 		u := NewWithNamespace(test.name)
 
 		if u != test.uuid {
 			t.Errorf("expected %q, got %q", test.uuid, u)
+		}
+
+		// The deprecation note claims NewV5 with the guessed namespace
+		// produces the same ID. Hold it to that.
+		if got := NewV5(test.ns, test.name); got != test.uuid {
+			t.Errorf("NewV5(%v, %q) = %q, want %q", test.ns, test.name, got, test.uuid)
 		}
 	}
 
@@ -184,51 +224,177 @@ func TestDecoding(t *testing.T) {
 
 func TestDecodingErrors(t *testing.T) {
 	tests := []struct {
-		shortuuid    string
-		errorPattern string
+		shortuuid string
+		want      error
 	}{
-		{"yoANdrf88xUXvwbS5GRbMN", "number is out of range"},
-		{"tWkeanmnjjupCMcjnUsfef", "number is out of range"},
-		{"1lIO022222222222222222", "not part of the alphabet"},
-		{"0a6hrgRGNfQ57QMHZdNYAg", "not part of the alphabet"},
+		{"yoANdrf88xUXvwbS5GRbMN", errOutOfRange},
+		{"tWkeanmnjjupCMcjnUsfef", errOutOfRange},
+		{"1lIO022222222222222222", errNotInAlphabet},
+		{"0a6hrgRGNfQ57QMHZdNYAg", errNotInAlphabet},
 	}
 	for _, test := range tests {
 		_, err := DefaultEncoder.Decode(test.shortuuid)
-		if err == nil {
-			t.Errorf("expected error containing %q for %q", test.errorPattern, test.shortuuid)
-			continue
-		}
-		if !strings.Contains(err.Error(), test.errorPattern) {
-			t.Errorf("expected error containing %q for %q, got %q", test.errorPattern, test.shortuuid, err.Error())
+		if !errors.Is(err, test.want) {
+			t.Errorf("Decode(%q) returned %v, want %v", test.shortuuid, err, test.want)
 		}
 	}
 }
 
-func TestDecodeMatchesGenericEncoder(t *testing.T) {
-	// b57Encoder consumes digits in groups of ten and has to scale whatever
-	// partial group is left by the number of digits it holds. Scaling by the
-	// wrong power returns a plausible UUID and no error, so the generic
-	// encoder over the same alphabet is the reference for every length -- not
-	// just the 22 that Encode produces.
-	generic := encoder{newAlphabet(DefaultAlphabet)}
-
-	for n := 1; n <= 24; n++ {
-		var sb strings.Builder
-		for i := 0; i < n; i++ {
-			sb.WriteByte(DefaultAlphabet[(i*7+3)%57])
+// referenceDecode is a deliberately naive big.Int reimplementation of base-N
+// decoding. The optimized decoders consume digits in uint64-sized groups and
+// scale a partial group by the number of digits it holds; scaling by the wrong
+// power returns a plausible UUID and no error, so the fixture they must agree
+// with cannot share that machinery.
+func referenceDecode(chars []rune, s string) (uuid.UUID, error) {
+	var u uuid.UUID
+	base := big.NewInt(int64(len(chars)))
+	n := new(big.Int)
+	for _, c := range s {
+		i := slices.Index(chars, c)
+		if i < 0 {
+			return u, notInAlphabet(c)
 		}
-		s := sb.String()
+		n.Mul(n, base)
+		n.Add(n, big.NewInt(int64(i)))
+	}
+	if n.BitLen() > 128 {
+		return u, errOutOfRange
+	}
+	n.FillBytes(u[:])
+	return u, nil
+}
 
-		want, wantErr := generic.Decode(s)
-		got, gotErr := DefaultEncoder.Decode(s)
+func TestDecodeMatchesReference(t *testing.T) {
+	alphabets := []string{
+		DefaultAlphabet,
+		"0123456789abcdef",
+		"うえおなにぬねのウエオナニヌネノ",
+	}
+	for _, abc := range alphabets {
+		a := newAlphabet(abc)
+		decoders := map[string]Encoder{
+			"NewEncoder": NewEncoder(abc), // DefaultEncoder for the default alphabet
+			"generic":    encoder{a},
+		}
+		for name, enc := range decoders {
+			// Three full digit groups so overflow is caught both at an
+			// in-loop group flush and in the partial tail, and a second pass
+			// with a leading zero digit so the longest lengths are exercised
+			// both above and below the 128-bit limit.
+			for n := 0; n <= 3*a.maxDigits+2; n++ {
+				for _, lead := range []bool{false, true} {
+					runes := make([]rune, n)
+					for i := range runes {
+						runes[i] = a.chars[(i*7+3)%len(a.chars)]
+					}
+					if lead && n > 0 {
+						runes[0] = a.chars[0]
+					}
+					s := string(runes)
 
-		if (gotErr == nil) != (wantErr == nil) {
-			t.Errorf("length %d (%q): b57 error %v, generic error %v", n, s, gotErr, wantErr)
-			continue
+					want, wantErr := referenceDecode(a.chars, s)
+					got, gotErr := enc.Decode(s)
+
+					if !errorsAgree(gotErr, wantErr) {
+						t.Errorf("%s %q: length %d (%q): error %v, reference error %v", name, abc, n, s, gotErr, wantErr)
+						continue
+					}
+					if gotErr == nil && got != want {
+						t.Errorf("%s %q: length %d (%q): decoded %v, reference decoded %v", name, abc, n, s, got, want)
+					}
+				}
+			}
+			for _, bad := range []string{"#", "日"} {
+				s := string(a.chars[0]) + bad
+				if _, err := enc.Decode(s); !errors.Is(err, errNotInAlphabet) {
+					t.Errorf("%s %q: Decode(%q) returned %v, want %v", name, abc, s, err, errNotInAlphabet)
+				}
+			}
 		}
-		if gotErr == nil && got != want {
-			t.Errorf("length %d (%q): b57 decoded %v, generic decoded %v", n, s, got, want)
+	}
+}
+
+// errorsAgree reports whether two decode errors are the same kind: both nil,
+// both out of range, or both a character outside the alphabet.
+func errorsAgree(got, want error) bool {
+	return errors.Is(got, errOutOfRange) == errors.Is(want, errOutOfRange) &&
+		errors.Is(got, errNotInAlphabet) == errors.Is(want, errNotInAlphabet) &&
+		(got == nil) == (want == nil)
+}
+
+func TestNewV7Sortable(t *testing.T) {
+	// Sort order survives encoding only because DefaultAlphabet is sorted and
+	// every encoding is 22 characters wide. Reordering it would break this.
+	prev := ""
+	for range 1000 {
+		got := NewV7()
+		if got <= prev {
+			t.Fatalf("v7 shortuuids must ascend: %q came after %q", got, prev)
 		}
+		prev = got
+	}
+}
+
+func TestUUIDv5(t *testing.T) {
+	// A widely published value, so a mismatch points at the namespace bytes or
+	// the version and variant bits rather than at the expectation.
+	if got := UUIDv5(NameSpaceDNS, "example.com").String(); got != "cfbff0d1-9375-5685-968c-48ce8b15ae17" {
+		t.Errorf("expected %q, got %q", "cfbff0d1-9375-5685-968c-48ce8b15ae17", got)
+	}
+}
+
+func TestNewV5(t *testing.T) {
+	tests := []struct {
+		namespace uuid.UUID
+		name      string
+		expected  string
+	}{
+		{NameSpaceDNS, "example.com/", "kueUMiGUbGccYhpZK8Czat"},
+		{NameSpaceURL, "http://www.example.com/", "nzUQAfy7CW4Dd4kzLguPSV"},
+		{NameSpaceOID, "1.2.840.113549", "HVizdopCKiLaGoTrVJrg9r"},
+		{NameSpaceX500, "CN=example,O=org", "KhUvFAV6shUNnwRqBDuz8i"},
+	}
+
+	for _, test := range tests {
+		if got := NewV5(test.namespace, test.name); got != test.expected {
+			t.Errorf("expected %q, got %q", test.expected, got)
+		}
+	}
+}
+
+func TestNewEncoder(t *testing.T) {
+	// The default alphabet must route to the optimised base57 encoder rather
+	// than the generic one. Substituting it is only safe while the two agree in
+	// both directions, which is a stronger claim than agreeing on Encode.
+	if enc := NewEncoder(DefaultAlphabet); enc != Encoder(DefaultEncoder) {
+		t.Errorf("NewEncoder(DefaultAlphabet) = %T, want %T", enc, DefaultEncoder)
+	}
+
+	// An alphabet of the same size and width as the default but with other
+	// characters must stay on the generic encoder.
+	notDefault := "!" + DefaultAlphabet[:len(DefaultAlphabet)-1]
+	if enc := NewEncoder(notDefault); enc == Encoder(DefaultEncoder) {
+		t.Errorf("NewEncoder(%q) = DefaultEncoder, want the generic encoder", notDefault)
+	}
+
+	// Reordering the characters, or repeating them, must give the same encoder.
+	u := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438371")
+	want := NewEncoder("0123456789abcdef").Encode(u)
+	for _, variant := range []string{"fedcba9876543210", "0123456789abcdefabcdef"} {
+		if got := NewEncoder(variant).Encode(u); got != want {
+			t.Errorf("NewEncoder(%q) encoded %q, want %q", variant, got, want)
+		}
+	}
+
+	for _, abc := range []string{"", "a", "aaa"} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("NewEncoder(%q) should panic: fewer than 2 distinct characters", abc)
+				}
+			}()
+			NewEncoder(abc)
+		}()
 	}
 }
 
@@ -240,87 +406,90 @@ func TestNewWithAlphabet(t *testing.T) {
 	if u2 != "iZsai==fWebXd5rLRWFB=u" {
 		t.Errorf("expected uuid to be %q, got %q", "iZsai==fWebXd5rLRWFB=u", u2)
 	}
-}
 
-func TestNewWithAlphabet_MultipleBytes(t *testing.T) {
-	abc := DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ"
-	enc := encoder{newAlphabet(abc)}
-	u1 := uuid.MustParse("e9ae9ba7-4fb1-4a6d-bbca-5315ed438374")
-	u2 := enc.Encode(u1)
-	if u2 != "jatbjAAgXfcYe5sMSXGCAお" {
-		t.Errorf("expected uuid to be %q, got %q", "jatbjAAgXfcYe5sMSXGCAお", u2)
-	}
-}
-
-func TestNewWithAlphabet_Short(t *testing.T) {
-	abc := "うえ"
-	enc := encoder{newAlphabet(abc)}
-	u1 := uuid.MustParse("bcee4c4f-cee8-4413-8f10-0f68d75c797b")
-	exp := "えうええええううえええうえええううえううええうううえううええええええううえええうえええうえううううえうううえうううううえううえええうううええええうううえううううううううええええうええうえうううええうえうえええうえうえええうううええええううえうええええうええ"
-	u2 := enc.Encode(u1)
-	if u2 != exp {
-		t.Errorf("expected uuid to be %q, got %q", exp, u2)
-		return
-	}
-	u3, err := enc.Decode(u2)
+	// The deprecation note promises NewEncoder as the drop-in replacement, so
+	// its encoder has to decode what NewWithAlphabet produces.
+	u, err := NewEncoder(abc).Decode(NewWithAlphabet(abc))
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatalf("NewEncoder(abc).Decode(NewWithAlphabet(abc)) returned %v", err)
 	}
-	if u1 != u3 {
-		t.Errorf("expected %q, got %q", u1, u3)
-	}
-}
-
-func TestAlphabetCustomLen(t *testing.T) {
-	abc := "21345687654123456"
-	enc := encoder{newAlphabet(abc)}
-	u1 := uuid.MustParse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
-	exp := "1348474176355756628268227744454847411355453"
-	u2 := enc.Encode(u1)
-	if u2 != exp {
-		t.Errorf("expected uuid to be %q, got %q", exp, u2)
-		return
-	}
-	u3, err := enc.Decode(u2)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if u1 != u3 {
-		t.Errorf("expected %q, got %q", u1, u3)
+	if version := u[6] >> 4; version != 4 {
+		t.Errorf("NewWithAlphabet generated version %d, want 4", version)
 	}
 }
 
-func TestAlphabet_MB(t *testing.T) {
-	abc := "うえおなにぬねのウエオナニヌネノ"
-	enc := encoder{newAlphabet(abc)}
-	u1 := uuid.MustParse("13ef31aa-934b-4f37-93b3-6e3ef30148e2")
-	exp := "えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお"
-	u2 := enc.Encode(u1)
-	if u2 != exp {
-		t.Errorf("expected uuid to be %q, got %q", exp, u2)
-		return
-	}
-	u3, err := enc.Decode(u2)
+func TestNewWithEncoder(t *testing.T) {
+	// NewWithEncoder promises the version New returns, encoded with enc.
+	u, err := DefaultEncoder.Decode(NewWithEncoder(DefaultEncoder))
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatalf("Decode(NewWithEncoder(DefaultEncoder)) returned %v", err)
 	}
-	if u1 != u3 {
-		t.Errorf("expected %q, got %q", u1, u3)
+	if version := u[6] >> 4; version != 4 {
+		t.Errorf("NewWithEncoder generated version %d, want 4", version)
+	}
+}
+
+// TestEncoderGoldens pins the generic encoder to fixed outputs across the
+// alphabet shapes it dispatches on: mixed single/multibyte, minimum size,
+// heavy duplication, and pure multibyte. A changed golden means the wire
+// format changed.
+func TestEncoderGoldens(t *testing.T) {
+	tests := []struct {
+		abc  string
+		uuid string
+		want string
+	}{
+		{
+			DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ",
+			"e9ae9ba7-4fb1-4a6d-bbca-5315ed438374",
+			"jatbjAAgXfcYe5sMSXGCAお",
+		},
+		{
+			"うえ",
+			"bcee4c4f-cee8-4413-8f10-0f68d75c797b",
+			"えうええええううえええうえええううえううええうううえううええええええううえええうえええうえううううえうううえうううううえううえええうううええええうううえううううううううええええうええうえうううええうえうえええうえうえええうううええええううえうええええうええ",
+		},
+		{
+			"21345687654123456",
+			"13ef31aa-934b-4f37-93b3-6e3ef30148e2",
+			"1348474176355756628268227744454847411355453",
+		},
+		{
+			"うえおなにぬねのウエオナニヌネノ",
+			"13ef31aa-934b-4f37-93b3-6e3ef30148e2",
+			"えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお",
+		},
+	}
+	for _, test := range tests {
+		enc := encoder{newAlphabet(test.abc)}
+		u1 := uuid.MustParse(test.uuid)
+
+		u2 := enc.Encode(u1)
+		if u2 != test.want {
+			t.Errorf("alphabet %q: Encode(%s) = %q, want %q", test.abc, test.uuid, u2, test.want)
+			continue
+		}
+
+		u3, err := enc.Decode(u2)
+		if err != nil {
+			t.Errorf("alphabet %q: Decode(%q) returned %v", test.abc, u2, err)
+			continue
+		}
+		if u3 != u1 {
+			t.Errorf("alphabet %q: round trip returned %s, want %s", test.abc, u3, u1)
+		}
 	}
 }
 
 func BenchmarkUUID(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		New()
 	}
 }
 
 func BenchmarkEncoding(b *testing.B) {
 	u := uuid.New()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		DefaultEncoder.Encode(u)
 	}
 }
@@ -328,7 +497,7 @@ func BenchmarkEncoding(b *testing.B) {
 func BenchmarkEncodingB57_MB(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghiうえおなにぬねのウエオナニヌネノ")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		enc.Encode(u)
 	}
 }
@@ -336,7 +505,7 @@ func BenchmarkEncodingB57_MB(b *testing.B) {
 func BenchmarkEncodingB16(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		enc.Encode(u)
 	}
 }
@@ -344,63 +513,71 @@ func BenchmarkEncodingB16(b *testing.B) {
 func BenchmarkEncodingB16_MB(b *testing.B) {
 	u := uuid.New()
 	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		enc.Encode(u)
 	}
 }
 
 func BenchmarkDecoding(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = DefaultEncoder.Decode("nUfojcH2M5j9j3Tk5A8mf7")
 	}
 }
 
 func BenchmarkDecodingB16(b *testing.B) {
 	enc := encoder{alphabet: newAlphabet("0123456789abcdef")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = enc.Decode("b430e18862a84ec58068d03898d94f5f")
 	}
 }
 
 func BenchmarkDecodingB16_MB(b *testing.B) {
 	enc := encoder{alphabet: newAlphabet("うえおなにぬねのウエオナニヌネノ")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = enc.Decode("えなネノなえオオエなにナにノなのエなナなねネなネノなうえにウネお")
 	}
 }
 
 func BenchmarkNewWithAlphabet(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy!")
 	}
 }
 
+// The alphabet is built once here, where NewWithAlphabet rebuilds it per call.
+func BenchmarkNewEncoder(b *testing.B) {
+	enc := NewEncoder("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxy!")
+	for b.Loop() {
+		_ = enc.Encode(uuid.New())
+	}
+}
+
 func BenchmarkNewWithAlphabetB16(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithAlphabet("0123456789abcdef")
 	}
 }
 
 func BenchmarkNewWithAlphabetB16_MB(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithAlphabet("うえおなにぬねのウエオナニヌネノ")
 	}
 }
 
 func BenchmarkNewWithNamespace(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithNamespace("someaveragelengthurl")
 	}
 }
 
 func BenchmarkNewWithNamespaceHttp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithNamespace("http://someaveragelengthurl.test")
 	}
 }
 
 func BenchmarkNewWithNamespaceHttps(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewWithNamespace("https://someaveragelengthurl.test")
 	}
 }

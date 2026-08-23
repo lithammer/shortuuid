@@ -2,32 +2,16 @@ package shortuuid
 
 import (
 	"encoding/binary"
-	"fmt"
-	"math"
+	"errors"
 	"math/bits"
 	"unicode/utf8"
 	"unsafe"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
-// encoder is a generic encoder that can encode/decode UUIDs using any alphabet.
-// It provides full support for custom alphabets including multibyte UTF-8 characters.
+// encoder encodes and decodes UUIDs over any alphabet, multibyte included.
 type encoder struct {
-	// alphabet is the character set to construct the UUID from.
 	alphabet alphabet
-}
-
-// maxPow calculates the maximum power of b that fits in a uint64, returning
-// both the value (d = b^n) and the exponent n. This is used during encoding
-// to process the 128-bit UUID value in chunks that fit in 64-bit arithmetic.
-func maxPow(b uint64) (d uint64, n int) {
-	d, n = b, 1
-	for m := math.MaxUint64 / b; d <= m; {
-		d *= b
-		n++
-	}
-	return
 }
 
 // Encode encodes uuid.UUID into a string using the most significant bits (MSB)
@@ -42,7 +26,7 @@ func (e encoder) Encode(u uuid.UUID) string {
 	buf := make([]byte, int64(e.alphabet.encLen)*int64(e.alphabet.maxBytes))
 	lastPlaced := len(buf)
 	l := uint64(e.alphabet.len)
-	d, n := maxPow(l)
+	d, n := e.alphabet.maxDivisor, e.alphabet.maxDigits
 
 	for num.Hi > 0 || num.Lo > 0 {
 		num, r = num.quoRem64(d)
@@ -68,42 +52,88 @@ func (e encoder) Encode(u uuid.UUID) string {
 
 // Decode decodes a string according to the alphabet into a uuid.UUID. If s is
 // too short, its most significant bits (MSB) will be padded with 0 (zero).
+//
+// Digits accumulate in a uint64 group that folds into the 128-bit result once
+// per maxDigits characters, so the 128-bit arithmetic runs a handful of times
+// instead of once per character.
 func (e encoder) Decode(s string) (u uuid.UUID, err error) {
 	var n uint128
-	var index int64
-
-	for _, char := range s {
-		index, err = e.alphabet.Index(char)
-		if err != nil {
-			return
-		}
-		n, err = n.mulAdd64(uint64(e.alphabet.len), uint64(index))
-		if err != nil {
-			return
-		}
+	if e.alphabet.reverse != nil {
+		n, err = e.decodeBytes(s)
+	} else {
+		n, err = e.decodeRunes(s)
+	}
+	if err != nil {
+		return u, err
 	}
 	binary.BigEndian.PutUint64(u[:8], n.Hi)
 	binary.BigEndian.PutUint64(u[8:], n.Lo)
-	return
+	return u, nil
 }
 
-const (
-	b57MaxU64Digits  = 10
-	b57MaxU64Divisor = 362033331456891249 // 57^10
-)
-
-// b57Pow[i] is 57 to the power i. Decode consumes digits in groups of
-// b57MaxU64Digits and needs to scale whatever partial group is left over by
-// the number of digits it actually holds.
-var b57Pow = [b57MaxU64Digits]uint64{
-	1, 57, 3249, 185193, 10556001,
-	601692057, 34296447249, 1954897493193, 111429157112001, 6351461955384057,
+// decodeBytes decodes over a single-byte alphabet, indexing the reverse table
+// with raw bytes. Any byte of a multibyte character maps to 255 in the table,
+// so such input fails the same way any character outside the alphabet does.
+func (e encoder) decodeBytes(s string) (n uint128, err error) {
+	l := uint64(e.alphabet.len)
+	reverse := e.alphabet.reverse
+	var group uint64
+	var digits int
+	for i := range len(s) {
+		ind := reverse[s[i]]
+		if ind == 255 {
+			r, _ := utf8.DecodeRuneInString(s[i:])
+			return n, notInAlphabet(r)
+		}
+		group = group*l + uint64(ind)
+		if digits++; digits == e.alphabet.maxDigits {
+			if n, err = n.mulAdd64(e.alphabet.maxDivisor, group); err != nil {
+				return n, err
+			}
+			group, digits = 0, 0
+		}
+	}
+	return n.mulAddDigits(l, group, digits)
 }
 
-// b57Encoder is an optimized encoder for the default base57 alphabet.
-// It uses a specialized implementation that's faster than the generic encoder
-// for the common case of base57 encoding/decoding.
+// decodeRunes decodes over a multibyte alphabet, looking every rune up with a
+// binary search.
+func (e encoder) decodeRunes(s string) (n uint128, err error) {
+	l := uint64(e.alphabet.len)
+	var ind int64
+	var group uint64
+	var digits int
+	for _, c := range s {
+		ind, err = e.alphabet.Index(c)
+		if err != nil {
+			return n, err
+		}
+		group = group*l + uint64(ind)
+		if digits++; digits == e.alphabet.maxDigits {
+			if n, err = n.mulAdd64(e.alphabet.maxDivisor, group); err != nil {
+				return n, err
+			}
+			group, digits = 0, 0
+		}
+	}
+	return n.mulAddDigits(l, group, digits)
+}
+
+// errOutOfRange reports a decoded value too large for the 128 bits a UUID has.
+var errOutOfRange = errors.New("number is out of range (need a 128-bit value)")
+
+// b57MaxU64Divisor is 57^10, the largest power of 57 that fits in a uint64.
+const b57MaxU64Divisor = 362033331456891249
+
+// b57Encoder is an optimized encoder for the default base57 alphabet. Encode
+// is specialized so the compiler turns every division by 57 into cheaper
+// multiplications; Decode gains nothing from that and delegates to the
+// generic encoder.
 type b57Encoder struct{}
+
+// genericB57 is the generic encoder over DefaultAlphabet, carrying the
+// reverse table b57Encoder.Decode needs.
+var genericB57 = encoder{newAlphabet(DefaultAlphabet)}
 
 func (e b57Encoder) Encode(u uuid.UUID) string {
 	num := uint128{
@@ -112,6 +142,10 @@ func (e b57Encoder) Encode(u uuid.UUID) string {
 	}
 	var r uint64
 	var buf [22]byte
+	// The 22 digits split 10+10+2: quoRem64 pulls out two full uint64 groups
+	// and num.Lo keeps the top pair, since 2^128/57^20 < 57^2. Within a group,
+	// eight chained divisions leave r < 57^2, so the last two writes need no
+	// shift.
 	num, r = num.quoRem64(b57MaxU64Divisor)
 	buf[21], r = DefaultAlphabet[r%57], r/57
 	buf[20], r = DefaultAlphabet[r%57], r/57
@@ -136,39 +170,11 @@ func (e b57Encoder) Encode(u uuid.UUID) string {
 	buf[2] = DefaultAlphabet[r/57]
 	buf[1] = DefaultAlphabet[num.Lo%57]
 	buf[0] = DefaultAlphabet[num.Lo/57]
-	return unsafe.String(unsafe.SliceData(buf[:]), 22)
+	return unsafe.String(unsafe.SliceData(buf[:]), 22) // same as in strings.Builder
 }
 
-func (e b57Encoder) Decode(s string) (u uuid.UUID, err error) {
-	var n uint128
-	var n64, ind, i uint64
-
-	for _, c := range s {
-		if c > 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", c)
-		}
-		ind = uint64(reverseB57[c])
-		if ind == 255 {
-			return u, fmt.Errorf("element '%v' is not part of the alphabet", c)
-		}
-		n64 = n64*57 + ind
-		i++
-		if i == b57MaxU64Digits {
-			n, err = n.mulAdd64(b57MaxU64Divisor, n64)
-			if err != nil {
-				return
-			}
-			i = 0
-			n64 = 0
-		}
-	}
-	n, err = n.mulAdd64(b57Pow[i], n64)
-	if err != nil {
-		return
-	}
-	binary.BigEndian.PutUint64(u[:8], n.Hi)
-	binary.BigEndian.PutUint64(u[8:], n.Lo)
-	return
+func (e b57Encoder) Decode(s string) (uuid.UUID, error) {
+	return genericB57.Decode(s)
 }
 
 // uint128 represents a 128-bit unsigned integer as two 64-bit words.
@@ -196,47 +202,19 @@ func (u uint128) mulAdd64(m uint64, a uint64) (uint128, error) {
 	lo, c0 := bits.Add64(lo, a, 0)
 	hi, c1 := bits.Add64(hi, p1, c0)
 	if p0 != 0 || c1 != 0 {
-		return uint128{}, fmt.Errorf("number is out of range (need a 128-bit value)")
+		return uint128{}, errOutOfRange
 	}
 	return uint128{lo, hi}, nil
 }
 
-// reverseB57 is a lookup table for fast base57 decoding. It maps ASCII byte
-// values (0-255) to their corresponding index in the default alphabet.
-// A value of 255 indicates that the byte is not part of the alphabet.
-// The table is indexed by the byte value directly, allowing O(1) lookup
-// during decoding.
-var reverseB57 = [256]byte{
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 0, 1, 2, 3, 4, 5,
-	6, 7, 255, 255, 255, 255, 255, 255,
-	255, 8, 9, 10, 11, 12, 13, 14,
-	15, 255, 16, 17, 18, 19, 20, 255,
-	21, 22, 23, 24, 25, 26, 27, 28,
-	29, 30, 31, 255, 255, 255, 255, 255,
-	255, 32, 33, 34, 35, 36, 37, 38,
-	39, 40, 41, 42, 255, 43, 44, 45,
-	46, 47, 48, 49, 50, 51, 52, 53,
-	54, 55, 56, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
-	255, 255, 255, 255, 255, 255, 255, 255,
+// mulAddDigits folds a partial group of digits into u, scaling u by
+// base^digits. A full group scales by the precomputed maxDivisor instead;
+// this recomputes the power because a partial group occurs at most once per
+// decode.
+func (u uint128) mulAddDigits(base, group uint64, digits int) (uint128, error) {
+	pow := uint64(1)
+	for range digits {
+		pow *= base
+	}
+	return u.mulAdd64(pow, group)
 }

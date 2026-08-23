@@ -1,0 +1,20 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - copyloopvar
+    - err113
+    - errorlint
+    - gocritic
+    - intrange
+    - misspell
+    - perfsprint
+    - predeclared
+    - revive
+    - unconvert
+    - usestdlibvars
+
+formatters:
+  enable:
+    - gofumpt
