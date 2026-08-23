@@ -56,35 +56,41 @@ func (e encoder) encodeBytes(num uint128) string {
 	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
 }
 
-// encodeRunes encodes over a multibyte alphabet. Runes have varying widths, so
-// digits are written back to front at lastPlaced while i counts the digits
-// still to place, and the buffer is sized for the widest case and trimmed.
+// encodeRunes encodes over a multibyte alphabet. Runes have varying widths,
+// so digits are written back to front at lastPlaced while i counts the digits
+// still to place; each digit is one 4-byte store of its precomputed UTF-8
+// encoding, and the buffer is sized for the widest case and trimmed.
 func (e encoder) encodeRunes(num uint128) string {
-	chars := e.alphabet.chars
-	l := uint64(len(chars))
+	packed := e.alphabet.mb.packed
+	l := uint64(len(packed))
 	d, n := e.alphabet.maxDivisor, e.alphabet.maxDigits
 	var r uint64
 	i := int(e.alphabet.encLen - 1)
-	buf := make([]byte, int64(e.alphabet.encLen)*int64(e.alphabet.maxBytes))
+	// 3 front-pad bytes so the 4-byte stores below stay in bounds when the
+	// leftmost character sits at the start of the encoded output.
+	buf := make([]byte, 3+int64(e.alphabet.encLen)*int64(e.alphabet.maxBytes))
 	lastPlaced := len(buf)
 
 	for num.Hi > 0 {
 		num, r = num.quoRem64(d)
 		for j := 0; j < n && i >= 0; j++ {
-			c := chars[r%l]
+			v := packed[r%l]
 			r /= l
-			lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
+			binary.LittleEndian.PutUint32(buf[lastPlaced-4:], uint32(v))
+			lastPlaced -= int(v >> 32)
 			i--
 		}
 	}
 	for r = num.Lo; r > 0 && i >= 0; i-- {
-		c := chars[r%l]
+		v := packed[r%l]
 		r /= l
-		lastPlaced -= utf8.EncodeRune(buf[lastPlaced-utf8.RuneLen(c):], c)
+		binary.LittleEndian.PutUint32(buf[lastPlaced-4:], uint32(v))
+		lastPlaced -= int(v >> 32)
 	}
-	firstRuneLen := utf8.RuneLen(chars[0])
+	v0 := packed[0]
 	for ; i >= 0; i-- {
-		lastPlaced -= utf8.EncodeRune(buf[lastPlaced-firstRuneLen:], chars[0])
+		binary.LittleEndian.PutUint32(buf[lastPlaced-4:], uint32(v0))
+		lastPlaced -= int(v0 >> 32)
 	}
 	buf = buf[lastPlaced:]
 	return unsafe.String(unsafe.SliceData(buf), len(buf)) // same as in strings.Builder
@@ -136,13 +142,31 @@ func (e encoder) decodeBytes(s string) (n uint128, err error) {
 	return n.mulAddDigits(l, group, digits)
 }
 
-// decodeRunes decodes over a multibyte alphabet, looking every rune up with a
-// binary search.
+// decodeRunes decodes over a multibyte alphabet, looking runes up in the
+// rune-index table when the alphabet was compact enough to build one, and by
+// binary search otherwise.
 func (e encoder) decodeRunes(s string) (n uint128, err error) {
 	l := uint64(e.alphabet.len)
 	var ind int64
 	var group uint64
 	var digits int
+	if t := e.alphabet.mb.runeIdx; t != nil {
+		minRune := e.alphabet.mb.minRune
+		for _, c := range s {
+			d := uint32(c - minRune)
+			if d >= uint32(len(t)) || t[d] == 255 {
+				return n, notInAlphabet(c)
+			}
+			group = group*l + uint64(t[d])
+			if digits++; digits == e.alphabet.maxDigits {
+				if n, err = n.mulAdd64(e.alphabet.maxDivisor, group); err != nil {
+					return n, err
+				}
+				group, digits = 0, 0
+			}
+		}
+		return n.mulAddDigits(l, group, digits)
+	}
 	for _, c := range s {
 		ind, err = e.alphabet.Index(c)
 		if err != nil {

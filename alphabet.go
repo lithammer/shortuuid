@@ -42,6 +42,24 @@ type alphabet struct {
 	// the alphabet. It is nil when maxBytes > 1; a single-byte alphabet holds
 	// only ASCII, so its indexes stay well below the marker.
 	reverse *[256]byte
+
+	// mb carries the multibyte lookup tables behind one pointer, keeping the
+	// struct the hot paths copy small. It is nil when maxBytes == 1.
+	mb *mbTables
+}
+
+type mbTables struct {
+	// packed[i] holds the UTF-8 encoding of chars[i]: the encoded bytes occupy
+	// the top of the low 32-bit little-endian word (so a 4-byte store ending at
+	// the write position lands them right-aligned), and bits 32-39 hold the
+	// byte length.
+	packed []uint64
+
+	// runeIdx maps c - minRune to the index of c in chars, with 255 marking
+	// runes outside the alphabet. Only set when the rune range is small
+	// enough; decode falls back to binary search otherwise.
+	runeIdx []byte
+	minRune rune
 }
 
 // maxPow calculates the maximum power of b that fits in a uint64, returning
@@ -85,6 +103,28 @@ func newAlphabet(s string) alphabet {
 		for i, c := range a.chars {
 			a.reverse[c] = byte(i)
 		}
+	} else {
+		mb := &mbTables{packed: make([]uint64, len(a.chars))}
+		for i, c := range a.chars {
+			var tmp [4]byte
+			sz := utf8.EncodeRune(tmp[:], c)
+			v := uint64(sz) << 32
+			for j := range sz {
+				v |= uint64(tmp[j]) << (8 * (4 - sz + j))
+			}
+			mb.packed[i] = v
+		}
+		mb.minRune = a.chars[0]
+		if spread := a.chars[len(a.chars)-1] - mb.minRune + 1; spread <= 4096 && len(a.chars) <= 255 {
+			mb.runeIdx = make([]byte, spread)
+			for i := range mb.runeIdx {
+				mb.runeIdx[i] = 255
+			}
+			for i, c := range a.chars {
+				mb.runeIdx[c-mb.minRune] = byte(i)
+			}
+		}
+		a.mb = mb
 	}
 	return a
 }
