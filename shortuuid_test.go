@@ -268,7 +268,8 @@ func TestDecodeMatchesReference(t *testing.T) {
 	alphabets := []string{
 		DefaultAlphabet,
 		"0123456789abcdef",
-		"うえおなにぬねのウエオナニヌネノ",
+		"うえおなにぬねのウエオナニヌネノ", // narrow rune spread: decodes via the rune-index table
+		"0123456789abcde中", // wide rune spread: decodes via binary search
 	}
 	for _, abc := range alphabets {
 		a := newAlphabet(abc)
@@ -439,6 +440,16 @@ func TestEncoderGoldens(t *testing.T) {
 		uuid string
 		want string
 	}{
+		{
+			"うえおなにぬねのウエオナニヌネノ",
+			"00000000-0000-0000-0000-000000000000",
+			"うううううううううううううううううううううううううううううううう",
+		},
+		{
+			"うえおなにぬねのウエオナニヌネノ",
+			"00000000-0000-0000-8000-000000000000",
+			"ううううううううううううううううウううううううううううううううう",
+		},
 		{
 			DefaultAlphabet[:len(DefaultAlphabet)-2] + "おネ",
 			"e9ae9ba7-4fb1-4a6d-bbca-5315ed438374",

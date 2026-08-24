@@ -19,16 +19,13 @@ func notInAlphabet(c rune) error {
 
 // DefaultAlphabet is the default alphabet used for base57 encoding.
 // It excludes similar-looking characters (0, 1, I, O, l) to avoid confusion.
-const (
-	DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-)
+const DefaultAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 // alphabet represents a character set for base-N encoding. It stores the
 // sorted, deduplicated characters along with precomputed values for efficient
 // encoding and decoding.
 type alphabet struct {
 	chars    []rune // sorted, deduplicated characters
-	len      int64  // number of characters in the alphabet
 	encLen   uint8  // maximum encoded length for a 128-bit value
 	maxBytes uint8  // maximum UTF-8 bytes needed for any character
 
@@ -42,6 +39,24 @@ type alphabet struct {
 	// the alphabet. It is nil when maxBytes > 1; a single-byte alphabet holds
 	// only ASCII, so its indexes stay well below the marker.
 	reverse *[256]byte
+
+	// mb carries the multibyte lookup tables behind one pointer, keeping the
+	// struct the hot paths copy small. It is nil when maxBytes == 1.
+	mb *mbTables
+}
+
+type mbTables struct {
+	// packed[i] holds the UTF-8 encoding of chars[i]: the encoded bytes occupy
+	// the top of the low 32-bit little-endian word (so a 4-byte store ending at
+	// the write position lands them right-aligned), and bits 32-39 hold the
+	// byte length.
+	packed []uint64
+
+	// runeIdx maps c - minRune to the index of c in chars, with 255 marking
+	// runes outside the alphabet. Only set when the rune range is small
+	// enough; decode falls back to binary search otherwise.
+	runeIdx []byte
+	minRune rune
 }
 
 // maxPow calculates the maximum power of b that fits in a uint64, returning
@@ -72,11 +87,10 @@ func newAlphabet(s string) alphabet {
 
 	a := alphabet{
 		chars:    abc,
-		len:      int64(len(abc)),
 		encLen:   uint8(math.Ceil(128 / math.Log2(float64(len(abc))))),
 		maxBytes: uint8(utf8.RuneLen(abc[len(abc)-1])),
 	}
-	a.maxDivisor, a.maxDigits = maxPow(uint64(a.len))
+	a.maxDivisor, a.maxDigits = maxPow(uint64(len(abc)))
 	if a.maxBytes == 1 {
 		a.reverse = new([256]byte)
 		for i := range a.reverse {
@@ -85,6 +99,28 @@ func newAlphabet(s string) alphabet {
 		for i, c := range a.chars {
 			a.reverse[c] = byte(i)
 		}
+	} else {
+		mb := &mbTables{packed: make([]uint64, len(a.chars))}
+		for i, c := range a.chars {
+			var tmp [4]byte
+			sz := utf8.EncodeRune(tmp[:], c)
+			v := uint64(sz) << 32
+			for j := range sz {
+				v |= uint64(tmp[j]) << (8 * (4 - sz + j))
+			}
+			mb.packed[i] = v
+		}
+		mb.minRune = a.chars[0]
+		if spread := a.chars[len(a.chars)-1] - mb.minRune + 1; spread <= 4096 && len(a.chars) <= 255 {
+			mb.runeIdx = make([]byte, spread)
+			for i := range mb.runeIdx {
+				mb.runeIdx[i] = 255
+			}
+			for i, c := range a.chars {
+				mb.runeIdx[c-mb.minRune] = byte(i)
+			}
+		}
+		a.mb = mb
 	}
 	return a
 }
@@ -94,7 +130,7 @@ func newAlphabet(s string) alphabet {
 // in place because converting chars to a string allocates, and costs more
 // than building the alphabet did.
 func (a *alphabet) isDefault() bool {
-	if int(a.len) != len(DefaultAlphabet) {
+	if len(a.chars) != len(DefaultAlphabet) {
 		return false
 	}
 	for i, c := range a.chars {
@@ -107,8 +143,8 @@ func (a *alphabet) isDefault() bool {
 
 // Index returns the index of the first instance of t in the alphabet, or an
 // error if t is not present.
-func (a *alphabet) Index(t rune) (int64, error) {
-	i, j := 0, int(a.len)
+func (a *alphabet) Index(t rune) (int, error) {
+	i, j := 0, len(a.chars)
 	for i < j {
 		h := int(uint(i+j) >> 1)
 		if a.chars[h] < t {
@@ -117,8 +153,8 @@ func (a *alphabet) Index(t rune) (int64, error) {
 			j = h
 		}
 	}
-	if i >= int(a.len) || a.chars[i] != t {
+	if i >= len(a.chars) || a.chars[i] != t {
 		return 0, notInAlphabet(t)
 	}
-	return int64(i), nil
+	return i, nil
 }
