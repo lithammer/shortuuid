@@ -79,6 +79,33 @@ u, err := shortuuid.DefaultEncoder.Decode("KwSysDpxcBU9FNhGkn2dCf")
 // 64d1355f-d052-4bd9-83f4-39b93fb1c01f
 ```
 
+Decoding is not a validity check. It rejects characters outside the alphabet
+and values that need more than 128 bits, but pads input that is too short, so
+an ID that lost a character decodes to a different UUID rather than failing.
+Compare the length as well:
+
+```go
+func valid(s string) bool {
+	_, err := shortuuid.DefaultEncoder.Decode(s)
+	return err == nil && len(s) == 22
+}
+```
+
+A custom alphabet encodes to its own width, and its characters may take more
+than one byte each, so count runes and ask the encoder for the width:
+
+```go
+var (
+	enc   = shortuuid.NewEncoder(abc)
+	width = utf8.RuneCountInString(enc.Encode(uuid.UUID{}))
+)
+
+func valid(s string) bool {
+	_, err := enc.Decode(s)
+	return err == nil && utf8.RuneCountInString(s) == width
+}
+```
+
 A custom alphabet (at least 2 distinct characters) needs its own encoder. Sorting
 and deduplicating the alphabet happens up front, so build the encoder once and
 reuse it:

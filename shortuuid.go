@@ -32,6 +32,9 @@ var (
 // Decode must invert Encode. The encoders this package provides write the
 // UUID as a base-N number, most significant digit first, and accept shorter
 // input on Decode by treating the missing leading digits as zeros.
+//
+// Decoding is therefore not a validity check: a shortuuid that lost
+// characters decodes to a different UUID rather than returning an error.
 type Encoder interface {
 	Encode(uuid.UUID) string
 	Decode(string) (uuid.UUID, error)
