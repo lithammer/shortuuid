@@ -42,6 +42,26 @@ shortuuid.NewV7() // time-ordered
 v7 UUIDs lead with a millisecond timestamp, and base57 keeps that order, so
 sorting v7 shortuuids as strings sorts them by creation time.
 
+That timestamp is readable once decoded. The standard library `uuid` package
+has no accessor for it, so read the bits directly — the first 48 hold the Unix
+time in milliseconds:
+
+```go
+// timeV7 returns the time a UUIDv7 was created, as defined in RFC 9562,
+// Section 5.7. The bool reports whether u is a v7 UUID at all.
+func timeV7(u uuid.UUID) (time.Time, bool) {
+	if u[6]>>4 != 7 {
+		return time.Time{}, false
+	}
+	var b [8]byte
+	copy(b[2:], u[:6])
+	return time.UnixMilli(int64(binary.BigEndian.Uint64(b[:]))), true
+}
+
+u, _ := shortuuid.DefaultEncoder.Decode("2JWDejXMnCMQungUr4fCjm")
+t, ok := timeV7(u) // t is 2026-09-02T03:05:45.235Z, ok is true
+```
+
 For v5 (derived from a name rather than random) pass a namespace and a name:
 
 ```go
