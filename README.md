@@ -53,9 +53,8 @@ func timeV7(u uuid.UUID) (time.Time, bool) {
 	if u[6]>>4 != 7 {
 		return time.Time{}, false
 	}
-	var b [8]byte
-	copy(b[2:], u[:6])
-	return time.UnixMilli(int64(binary.BigEndian.Uint64(b[:]))), true
+	ms := binary.BigEndian.Uint64(u[:8]) >> 16
+	return time.UnixMilli(int64(ms)), true
 }
 
 u, _ := shortuuid.DefaultEncoder.Decode("2JWDejXMnCMQungUr4fCjm")
